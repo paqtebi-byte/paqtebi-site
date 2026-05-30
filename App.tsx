@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense, useCallback } from "react";
-import { Routes, Route, useNavigate, useParams, useLocation } from "react-router-dom";
+import { Routes, Route, useNavigate, useParams, useLocation, Navigate } from "react-router-dom";
 import { Article, User } from "./types";
 import { LoadingSkeleton } from "./components/LoadingSkeleton";
 import { Sidebar } from "./components/Sidebar";
@@ -61,9 +61,7 @@ const Login = React.lazy(() =>
 const AuthModal = React.lazy(() =>
   import("./components/AuthModal").then((m) => ({ default: m.AuthModal }))
 );
-const AdminRegister = React.lazy(() =>
-  import("./components/AdminRegister").then((m) => ({ default: m.AdminRegister }))
-);
+
 const ForgotPassword = React.lazy(() =>
   import("./components/ForgotPassword").then((m) => ({ default: m.ForgotPassword }))
 );
@@ -1038,10 +1036,10 @@ const AppContent: React.FC = () => (
     <Route path="/interesting" element={<InterestingRoutePage />} />
     <Route path="/interesting/:id" element={<InterestingRoutePage />} />
     <Route path="/admin/login" element={<AdminLoginPage />} />
-    <Route path="/admin/register" element={<Suspense fallback={<LoadingSkeleton />}><AdminRegister /></Suspense>} />
     <Route path="/admin/forgot-password" element={<Suspense fallback={<LoadingSkeleton />}><ForgotPassword /></Suspense>} />
     <Route path="/admin/reset-password/:token" element={<Suspense fallback={<LoadingSkeleton />}><ResetPassword /></Suspense>} />
     <Route path="/admin" element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
+    <Route path="/admin/*" element={<ProtectedRoute><Navigate to="/admin" replace /></ProtectedRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
