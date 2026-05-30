@@ -50,69 +50,48 @@ export const registerAdmin = (username: string, email: string, password: string)
   };
 };
 
-export const loginAdmin = (username: string, password: string): AdminAuthResponse => {
-  const accounts = getAdminAccounts();
+export const loginAdmin = async (email: string, password: string): Promise<AdminAuthResponse> => {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { success: false, message: 'Supabase client not configured' };
 
-  // Case-insensitive search and trim whitespace
-  const admin = accounts.find(a => a.username.toLowerCase() === username.trim().toLowerCase());
+  // 1. Authenticate user via Supabase Auth
+  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
-  if (!admin) {
-    return { success: false, message: `მომხმარებელი "${username}" ვერ მოიძებნა. დარეგისტრირებული ხართ?` };
+  if (authError || !authData.user) {
+    return { success: false, message: 'ელ-ფოსტა ან პაროლი არასწორია (Invalid email or password)' };
   }
 
-  // Check account lockout
-  if (admin.lockedUntil) {
-    const lockoutTime = new Date(admin.lockedUntil);
-    if (lockoutTime > new Date()) {
-      const minutesLeft = Math.ceil((lockoutTime.getTime() - Date.now()) / 60000);
-      return {
-        success: false,
-        message: `ანგარიში დაბლოკილია. სცადეთ ${minutesLeft} წუთში`,
-      };
-    } else {
-      // Unlock account
-      admin.lockedUntil = undefined;
-      admin.failedLoginAttempts = 0;
-    }
+  // 2. Validate admin role in public.users table
+  const { data: userData, error: userError } = await supabase
+    .from('users')
+    .select('role, username, email')
+    .eq('id', authData.user.id)
+    .single();
+
+  if (userError || !userData || userData.role !== 'admin') {
+    await supabase.auth.signOut();
+    return { success: false, message: 'თქვენ არ გაქვთ ადმინისტრატორის უფლებები (Unauthorized role)' };
   }
 
-  // Verify password
-  if (!verifyPassword(password, admin.passwordHash)) {
-    admin.failedLoginAttempts++;
-
-    // Lock account after 5 failed attempts
-    if (admin.failedLoginAttempts >= 5) {
-      const lockoutUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-      admin.lockedUntil = lockoutUntil.toISOString();
-      saveAdminAccounts(accounts);
-      return {
-        success: false,
-        message: '5 წარუმატებელი მცდელობის შემდეგ ანგარიში დაიბლოკა 15 წუთით',
-      };
-    }
-
-    saveAdminAccounts(accounts);
-    return {
-      success: false,
-      message: `პაროლი არასწორია (${5 - admin.failedLoginAttempts} მცდელობა დარჩა)`,
-    };
-  }
-
-  // Successful login
-  admin.failedLoginAttempts = 0;
-  admin.lastLogin = new Date().toISOString();
-  admin.lockedUntil = undefined;
-  saveAdminAccounts(accounts);
-
-  // Set auth session
+  // 3. Maintain compatibility with existing ProtectedRoute/localStorage logic
   localStorage.setItem(STORAGE_KEY_ADMIN_AUTH, 'true');
-  const { passwordHash, ...safeAdmin } = admin;
+  const safeAdmin = {
+    id: authData.user.id,
+    username: userData.username || email,
+    email: userData.email || email,
+    createdAt: new Date().toISOString(),
+    emailVerified: true,
+    failedLoginAttempts: 0,
+  };
   localStorage.setItem(STORAGE_KEY_CURRENT_ADMIN, JSON.stringify(safeAdmin));
 
   return {
     success: true,
     message: 'წარმატებით შეხვედით სისტემაში',
-    admin: safeAdmin,
+    admin: safeAdmin as any,
   };
 };
 
