@@ -37,7 +37,7 @@ export const Login: React.FC = () => {
     }
     setIsSubmitting(true);
     try {
-      const response = loginAdmin(formData.username, formData.password);
+      const response = await loginAdmin(formData.username, formData.password);
       if (response.success) {
         addToast(response.message, 'success');
         navigate('/admin');
