@@ -44,46 +44,9 @@ const saveAdminAccounts = (accounts: AdminAccount[]): void => {
 };
 
 export const registerAdmin = (username: string, email: string, password: string): AdminAuthResponse => {
-  const accounts = getAdminAccounts();
-
-  // Validation
-  if (!username || !email || !password) {
-    return { success: false, message: 'ყველა ველი სავალდებულოა' };
-  }
-
-  if (!isPasswordValid(password)) {
-    return { success: false, message: 'პაროლი არ აკმაყოფილებს მოთხოვნებს' };
-  }
-
-  // Check duplicates
-  if (accounts.some(a => a.username === username)) {
-    return { success: false, message: 'ეს მომხმარებლის სახელი უკვე გამოყენებულია' };
-  }
-
-  if (accounts.some(a => a.email === email)) {
-    return { success: false, message: 'ეს ელ-ფოსტა უკვე რეგისტრირებულია' };
-  }
-
-  // Create new admin account
-  const newAdmin: AdminAccount = {
-    id: Date.now().toString(),
-    username,
-    email,
-    passwordHash: hashPassword(password),
-    createdAt: new Date().toISOString(),
-    emailVerified: false,
-    verificationToken: generateVerificationToken(),
-    failedLoginAttempts: 0,
-  };
-
-  accounts.push(newAdmin);
-  saveAdminAccounts(accounts);
-
-  const { passwordHash, ...safeAdmin } = newAdmin;
   return {
-    success: true,
-    message: 'რეგისტრაცია წარმატებით დასრულდა. გთხოვთ შეამოწმოთ ელ-ფოსტა ვერიფიკაციისთვის.',
-    admin: safeAdmin,
+    success: false,
+    message: 'Registration is disabled for security reasons.'
   };
 };
 

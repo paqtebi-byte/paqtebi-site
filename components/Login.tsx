@@ -224,18 +224,6 @@ export const Login: React.FC = () => {
               </button>
             </form>
 
-            {/* Footer */}
-            <div className="mt-6 pt-6" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-              <p className="text-xs text-gray-600 text-center mb-3">ანგარიში არ გაქვთ?</p>
-              <button
-                onClick={() => navigate('/admin/register')}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-gray-400 hover:text-white transition-all"
-                style={{ border: '1.5px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}
-              >
-                <UserPlus size={15} />
-                რეგისტრაცია
-              </button>
-            </div>
           </div>
 
           <p className="text-center text-xs text-gray-700 mt-6">
