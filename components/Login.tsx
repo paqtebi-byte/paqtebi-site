@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { loginAdmin } from '../services/authService';
+import { loginAdminSecure } from '../services/authService';
 import { useToast } from '../context/ToastContext';
 import { Lock, Eye, EyeOff, User, UserPlus, ArrowLeft, Shield } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
@@ -10,7 +10,7 @@ export const Login: React.FC = () => {
   const location = useLocation();
   const { addToast } = useToast();
 
-  const [formData, setFormData] = useState({ username: '', password: '' });
+  const [formData, setFormData] = useState({ username: '', password: '', secretCode: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,13 +31,13 @@ export const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!formData.username || !formData.password) {
+    if (!formData.username || !formData.password || !formData.secretCode) {
       setError('გთხოვთ შეავსოთ ყველა ველი');
       return;
     }
     setIsSubmitting(true);
     try {
-      const response = await loginAdmin(formData.username, formData.password);
+      const response = await loginAdminSecure(formData.username, formData.password, formData.secretCode);
       if (response.success) {
         addToast(response.message, 'success');
         navigate('/admin');
@@ -181,6 +181,33 @@ export const Login: React.FC = () => {
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
+                </div>
+              </div>
+
+              {/* Secret Code */}
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  საიდუმლო კოდი
+                </label>
+                <div className="relative">
+                  <Shield
+                    size={16}
+                    className={`absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors ${focused === 'secretCode' ? 'text-news-accent' : 'text-gray-600'}`}
+                  />
+                  <input
+                    id="secretCode"
+                    type="password"
+                    value={formData.secretCode}
+                    onChange={(e) => setFormData({ ...formData, secretCode: e.target.value })}
+                    onFocus={() => setFocused('secretCode')}
+                    onBlur={() => setFocused(null)}
+                    className="w-full pl-10 pr-4 py-3 text-sm text-white rounded-xl transition-all outline-none"
+                    style={{
+                      background: focused === 'secretCode' ? 'rgba(220,38,38,0.08)' : 'rgba(255,255,255,0.06)',
+                      border: focused === 'secretCode' ? '1.5px solid rgba(220,38,38,0.5)' : '1.5px solid rgba(255,255,255,0.08)',
+                    }}
+                    placeholder="შეიყვანეთ საიდუმლო კოდი"
+                  />
                 </div>
               </div>
 
