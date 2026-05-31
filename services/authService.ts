@@ -1,7 +1,7 @@
 import { User, AuthResponse } from "../types";
 import type { Provider, User as SupabaseAuthUser } from "@supabase/supabase-js";
 import getSupabaseClient from "./supabaseClient";
-import { hashPassword, generateResetToken, isPasswordValid } from "../utils/passwordUtils";
+import { hashPassword, verifyPassword, generateResetToken, isPasswordValid } from "../utils/passwordUtils";
 
 // Storage Keys
 const STORAGE_KEY_ADMIN_AUTH = 'paqtebi_admin_auth';
@@ -66,6 +66,46 @@ const cacheAdmin = (
   return safeAdmin;
 };
 
+const getCachedAdmin = (): Omit<AdminAccount, 'passwordHash'> | null => {
+  const data = localStorage.getItem(STORAGE_KEY_CURRENT_ADMIN);
+  return data ? JSON.parse(data) : null;
+};
+
+const findAdminByLogin = async (
+  login: string,
+): Promise<{
+  id: string;
+  username: string;
+  email: string;
+  role: string;
+  password?: string | null;
+  password_hash?: string | null;
+} | null> => {
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
+
+  const trimmedLogin = login.trim();
+  const fields = 'id, username, email, role, password, password_hash';
+  const primaryField = trimmedLogin.includes('@') ? 'email' : 'username';
+  const secondaryField = primaryField === 'email' ? 'username' : 'email';
+
+  const primary = await supabase
+    .from('users')
+    .select(fields)
+    .eq(primaryField, trimmedLogin)
+    .maybeSingle();
+
+  if (primary.data) return primary.data as any;
+
+  const secondary = await supabase
+    .from('users')
+    .select(fields)
+    .eq(secondaryField, trimmedLogin)
+    .maybeSingle();
+
+  return (secondary.data as any) || null;
+};
+
 export const getAdminFromSession = async (): Promise<Omit<AdminAccount, 'passwordHash'> | null> => {
   const supabase = getSupabaseClient();
   if (!supabase) {
@@ -77,8 +117,25 @@ export const getAdminFromSession = async (): Promise<Omit<AdminAccount, 'passwor
   const authUser = sessionData.session?.user;
 
   if (sessionError || !authUser) {
-    clearAdminCache();
-    return null;
+    const cachedAdmin = getCachedAdmin();
+    if (!cachedAdmin?.id) return null;
+
+    const { data: cachedUser, error: cachedError } = await supabase
+      .from('users')
+      .select('role, username, email')
+      .eq('id', cachedAdmin.id)
+      .single();
+
+    if (cachedError || !cachedUser || cachedUser.role !== 'admin') {
+      clearAdminCache();
+      return null;
+    }
+
+    return cacheAdmin(
+      cachedAdmin.id,
+      cachedUser.username || cachedAdmin.username || 'Admin',
+      cachedUser.email || cachedAdmin.email || '',
+    );
   }
 
   const { data: userData, error: userError } = await supabase
@@ -109,6 +166,39 @@ export const registerAdmin = (username: string, email: string, password: string)
 export const loginAdmin = async (email: string, password: string): Promise<AdminAuthResponse> => {
   const supabase = getSupabaseClient();
   if (!supabase) return { success: false, message: 'Supabase client not configured' };
+
+  const login = email.trim();
+  const legacyAdmin = await findAdminByLogin(login);
+
+  if (!legacyAdmin || legacyAdmin.role !== 'admin') {
+    return { success: false, message: 'ელ-ფოსტა ან პაროლი არასწორია (Invalid email or password)' };
+  }
+
+  const hasValidHash = Boolean(legacyAdmin.password_hash && verifyPassword(password, legacyAdmin.password_hash));
+  const hasValidLegacyPassword = Boolean(legacyAdmin.password && legacyAdmin.password === password);
+
+  if (!hasValidHash && !hasValidLegacyPassword) {
+    return { success: false, message: 'ელ-ფოსტა ან პაროლი არასწორია (Invalid email or password)' };
+  }
+
+  if (hasValidLegacyPassword && !legacyAdmin.password_hash) {
+    await supabase
+      .from('users')
+      .update({ password_hash: hashPassword(password), password: null })
+      .eq('id', legacyAdmin.id);
+  }
+
+  const safeLegacyAdmin = cacheAdmin(
+    legacyAdmin.id,
+    legacyAdmin.username || login,
+    legacyAdmin.email || '',
+  );
+
+  return {
+    success: true,
+    message: 'წარმატებით შეხვედით სისტემაში',
+    admin: safeLegacyAdmin as any,
+  };
 
   // 1. Authenticate user via Supabase Auth
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
