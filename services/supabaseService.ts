@@ -24,8 +24,11 @@ class SupabaseService {
     try {
       const { data, error } = await supabase
         .from("articles")
-        .select("*")
-        .order("created_at", { ascending: false });
+        .select(
+          "id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at"
+        )
+        .order("created_at", { ascending: false })
+        .range(0, 99);
 
       if (error) {
         throw new Error(`Error fetching articles: ${error.message}`);
@@ -116,8 +119,9 @@ class SupabaseService {
     try {
       let query = supabase
         .from("comments")
-        .select("*")
-        .order("timestamp", { ascending: false });
+        .select("id, article_id, author, content, timestamp, reactions")
+        .order("timestamp", { ascending: false })
+        .range(0, 49);
 
       if (articleId) {
         query = query.eq("article_id", articleId);
@@ -190,9 +194,10 @@ class SupabaseService {
     try {
       const { data, error } = await supabase
         .from("breaking_news")
-        .select("*")
+        .select("id, text, active, created_at")
         .eq("active", true)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(0, 9);
 
       if (error) {
         throw new Error(`Error fetching breaking news: ${error.message}`);

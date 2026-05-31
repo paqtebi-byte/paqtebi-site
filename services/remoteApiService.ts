@@ -151,8 +151,11 @@ class RemoteApiService {
     try {
       let query = this.supabase!
         .from(DATABASE_CONFIG.TABLES.ARTICLES)
-        .select("*")
-        .order("created_at", { ascending: false });
+        .select(
+          "id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at"
+        )
+        .order("created_at", { ascending: false })
+        .range(0, 99);
 
       if (contentType !== "all") {
         query = query.eq("content_type", contentType);
@@ -329,12 +332,16 @@ class RemoteApiService {
       }
     }
 
-    // Use Supabase
+    // Use Supabase — join articles to resolve articleTitle in a single query
     try {
       let query = this.supabase!
         .from(DATABASE_CONFIG.TABLES.COMMENTS)
-        .select("*")
-        .order("timestamp", { ascending: false });
+        .select(
+          `id, article_id, author, content, timestamp, reactions,
+          articles:${DATABASE_CONFIG.TABLES.ARTICLES}!article_id ( title )`
+        )
+        .order("timestamp", { ascending: false })
+        .range(0, 49);
 
       if (articleId) {
         query = query.eq("article_id", articleId);
@@ -346,16 +353,15 @@ class RemoteApiService {
         throw new Error(`Error fetching comments: ${error.message}`);
       }
 
-      const comments = data as Comment[];
-      const articles = await this.fetchArticles();
-
-      return comments.map((comment) => {
-        const article = articles.find((a) => a.id === comment.articleId);
-        return {
-          ...comment,
-          articleTitle: article ? article.title : undefined,
-        };
-      });
+      return (data || []).map((row: any) => ({
+        id: row.id,
+        articleId: row.article_id,
+        author: row.author,
+        content: row.content,
+        timestamp: row.timestamp,
+        reactions: row.reactions,
+        articleTitle: row.articles?.title ?? undefined,
+      } as Comment));
     } catch (error) {
       console.error("Error in fetchComments:", error);
       return [];
@@ -396,7 +402,7 @@ class RemoteApiService {
       }
     }
 
-    // Use Supabase
+    // Use Supabase — resolve articleTitle with a targeted single-row query instead of fetchArticles()
     try {
       const { data, error } = await this.supabase!
         .from(DATABASE_CONFIG.TABLES.COMMENTS)
@@ -406,19 +412,24 @@ class RemoteApiService {
             timestamp: Date.now(),
           },
         ])
-        .select()
+        .select("id, article_id, author, content, timestamp, reactions")
         .single();
 
       if (error) {
         throw new Error(`Error inserting comment: ${error.message}`);
       }
 
-      const newComment = data as Comment;
-      const articles = await this.fetchArticles();
-      const article = articles.find((a) => a.id === comment.articleId);
-      if (article) {
-        newComment.articleTitle = article.title;
-      }
+      const newComment = data as unknown as Comment;
+      newComment.articleId = (data as any).article_id ?? comment.articleId;
+
+      // Resolve articleTitle with a single targeted lookup — no full table scan
+      const { data: articleRow } = await this.supabase!
+        .from(DATABASE_CONFIG.TABLES.ARTICLES)
+        .select("title")
+        .eq("id", comment.articleId)
+        .maybeSingle();
+
+      if (articleRow) newComment.articleTitle = articleRow.title;
 
       return newComment;
     } catch (error) {
@@ -528,9 +539,10 @@ class RemoteApiService {
     try {
       const { data, error } = await this.supabase!
         .from(DATABASE_CONFIG.TABLES.BREAKING_NEWS)
-        .select("*")
+        .select("id, text, active, created_at")
         .eq("active", true)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(0, 9);
 
       if (error) {
         throw new Error(`Error fetching breaking news: ${error.message}`);
@@ -670,7 +682,7 @@ class RemoteApiService {
     try {
       const { data, error } = await this.supabase!
         .from(DATABASE_CONFIG.TABLES.AD_PLACEMENTS)
-        .select("*")
+        .select("id, title, image_url, target_url, active, updated_at")
         .eq("id", "sidebar-main")
         .maybeSingle();
 
@@ -753,8 +765,9 @@ class RemoteApiService {
     try {
       const { data, error } = await this.supabase!
         .from(DATABASE_CONFIG.TABLES.AD_INQUIRIES)
-        .select("*")
-        .order("created_at", { ascending: false });
+        .select("id, full_name, phone, email, message, created_at")
+        .order("created_at", { ascending: false })
+        .range(0, 99);
 
       if (error) throw error;
       return (data || []).map((row) => this.mapAdInquiryFromDb(row));
