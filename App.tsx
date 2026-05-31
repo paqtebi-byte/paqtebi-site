@@ -550,6 +550,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
               alt={heroArticle?.title || "Main Hero"}
               className="w-full h-full transition-transform duration-700 group-hover:scale-105"
               loading="eager"
+              priority
             />
             <div className="hero-overlay absolute inset-0" />
           </div>

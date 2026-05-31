@@ -8,6 +8,7 @@ interface LazyImageProps {
   className?: string;
   loading?: 'lazy' | 'eager';
   rootMargin?: string;
+  priority?: boolean;
 }
 
 export const LazyImage: React.FC<LazyImageProps> = ({
@@ -16,20 +17,21 @@ export const LazyImage: React.FC<LazyImageProps> = ({
   className = '',
   loading = 'lazy',
   rootMargin = '500px 0px',
+  priority = false,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [shouldLoad, setShouldLoad] = useState(loading === 'eager');
+  const [shouldLoad, setShouldLoad] = useState(loading === 'eager' || priority);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     setIsLoaded(false);
     setHasError(false);
-    setShouldLoad(loading === 'eager');
-  }, [src, loading]);
+    setShouldLoad(loading === 'eager' || priority);
+  }, [src, loading, priority]);
 
   useEffect(() => {
-    if (loading === 'eager' || shouldLoad) return;
+    if (loading === 'eager' || priority || shouldLoad) return;
 
     const target = containerRef.current;
     if (!target) return;
@@ -51,7 +53,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [loading, rootMargin, shouldLoad]);
+  }, [loading, priority, rootMargin, shouldLoad]);
 
   if (hasError) {
     return (
@@ -74,9 +76,14 @@ export const LazyImage: React.FC<LazyImageProps> = ({
         <img
           src={src}
           alt={alt}
-          className={`w-full h-full object-cover transition-all duration-700 ${isLoaded ? 'opacity-100 blur-0 scale-100' : 'opacity-0 blur-sm scale-105'}`}
-          loading={loading}
-          decoding="async"
+          className={
+            priority
+              ? `w-full h-full object-cover transition-opacity duration-200 ${isLoaded ? 'opacity-100' : 'opacity-0'}`
+              : `w-full h-full object-cover transition-all duration-700 ${isLoaded ? 'opacity-100 blur-0 scale-100' : 'opacity-0 blur-sm scale-105'}`
+          }
+          loading={priority ? 'eager' : loading}
+          decoding={priority ? 'sync' : 'async'}
+          fetchPriority={priority ? 'high' : 'auto'}
           onLoad={() => setIsLoaded(true)}
           onError={() => setHasError(true)}
         />
