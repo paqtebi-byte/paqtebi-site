@@ -29,12 +29,11 @@ export const ForgotPassword: React.FC = () => {
         setIsSubmitting(true);
 
         try {
-            const response = requestPasswordReset(email) as any;
+            const response = await requestPasswordReset(email);
             addToast(response.message, response.success ? 'success' : 'error');
 
-            if (response.success && response.resetToken) {
-                const link = `/admin/reset-password/${response.resetToken}`;
-                setResetLink(link);
+            if (response.success) {
+                const link = '';
                 setEmailSent(true);
                 console.log('🔐 Reset Link:', window.location.origin + link);
             }

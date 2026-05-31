@@ -1,3 +1,4 @@
+import DOMPurify from 'dompurify';
 
 /**
  * Sanitizes user input to prevent XSS (Cross-Site Scripting) attacks.
@@ -5,12 +6,17 @@
  */
 export const sanitizeInput = (input: string): string => {
   if (!input) return '';
-  return input
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+  try {
+    return DOMPurify.sanitize(input, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
+  } catch (error) {
+    // Fallback to basic sanitization if DOMPurify fails
+    return input
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
 };
 
 /**
@@ -18,6 +24,16 @@ export const sanitizeInput = (input: string): string => {
  */
 export const isValidImageUrl = (url: string): boolean => {
   if (!url) return false;
-  // Allow data URLs (base64) or http/https protocols
-  return url.startsWith('http') || url.startsWith('data:image');
+  const value = url.trim();
+
+  if (/^data:image\/(?:png|jpe?g|gif|webp);base64,[a-z0-9+/=\s]+$/i.test(value)) {
+    return true;
+  }
+
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
 };

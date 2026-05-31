@@ -1002,11 +1002,12 @@ const InterestingRoutePage: React.FC = () => {
    ADMIN PAGES
 ───────────────────────────────────────────────────────────────── */
 const AdminLoginPage: React.FC = () => {
-  const { isAdminAuthenticated } = useAuth();
+  const { isAdminAuthenticated, isAdminAuthLoading } = useAuth();
   const navigate = useNavigate();
   useEffect(() => {
-    if (isAdminAuthenticated) navigate("/admin", { replace: true });
-  }, [isAdminAuthenticated, navigate]);
+    if (!isAdminAuthLoading && isAdminAuthenticated) navigate("/admin", { replace: true });
+  }, [isAdminAuthenticated, isAdminAuthLoading, navigate]);
+  if (isAdminAuthLoading) return <LoadingSkeleton />;
   return <Suspense fallback={<LoadingSkeleton />}><Login /></Suspense>;
 };
 
@@ -1037,6 +1038,7 @@ const AppContent: React.FC = () => (
     <Route path="/interesting/:id" element={<InterestingRoutePage />} />
     <Route path="/admin/login" element={<AdminLoginPage />} />
     <Route path="/admin/forgot-password" element={<Suspense fallback={<LoadingSkeleton />}><ForgotPassword /></Suspense>} />
+    <Route path="/admin/reset-password" element={<Suspense fallback={<LoadingSkeleton />}><ResetPassword /></Suspense>} />
     <Route path="/admin/reset-password/:token" element={<Suspense fallback={<LoadingSkeleton />}><ResetPassword /></Suspense>} />
     <Route path="/admin" element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
     <Route path="/admin/*" element={<ProtectedRoute><Navigate to="/admin" replace /></ProtectedRoute>} />
