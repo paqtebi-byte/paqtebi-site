@@ -15,6 +15,7 @@ export interface AdminAccount {
   id: string;
   username: string;
   email: string;
+  role?: 'owner' | 'admin';
   passwordHash: string;
   createdAt: string;
   emailVerified: boolean;
@@ -30,6 +31,15 @@ export interface AdminAuthResponse {
   success: boolean;
   message: string;
   admin?: Omit<AdminAccount, 'passwordHash'>;
+}
+
+export interface AdminUserRecord {
+  id: string;
+  username: string;
+  email: string;
+  role: 'owner' | 'admin';
+  created_at?: string;
+  createdAt?: string;
 }
 
 // --- Admin Account Management ---
@@ -48,15 +58,19 @@ const clearAdminCache = (): void => {
   localStorage.removeItem(STORAGE_KEY_CURRENT_ADMIN);
 };
 
+const getAdminToken = (): string | null => localStorage.getItem(STORAGE_KEY_ADMIN_AUTH);
+
 const cacheAdmin = (
   id: string,
   username: string,
   email: string,
+  role: 'owner' | 'admin' = 'admin',
 ): Omit<AdminAccount, 'passwordHash'> => {
   const safeAdmin = {
     id,
     username,
     email,
+    role,
     createdAt: new Date().toISOString(),
     emailVerified: true,
     failedLoginAttempts: 0,
@@ -106,54 +120,36 @@ const findAdminByLogin = async (
   return (secondary.data as any) || null;
 };
 
+const callAdminApi = async <T,>(payload: Record<string, unknown>): Promise<T> => {
+  const response = await fetch('/api/admin-auth', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json();
+  if (!response.ok || data?.success === false) {
+    throw new Error(data?.message || 'Admin request failed');
+  }
+  return data as T;
+};
+
 export const getAdminFromSession = async (): Promise<Omit<AdminAccount, 'passwordHash'> | null> => {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
+  const token = getAdminToken();
+  if (!token) {
     clearAdminCache();
     return null;
   }
 
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  const authUser = sessionData.session?.user;
-
-  if (sessionError || !authUser) {
-    const cachedAdmin = getCachedAdmin();
-    if (!cachedAdmin?.id) return null;
-
-    const { data: cachedUser, error: cachedError } = await supabase
-      .from('users')
-      .select('role, username, email')
-      .eq('id', cachedAdmin.id)
-      .single();
-
-    if (cachedError || !cachedUser || cachedUser.role !== 'admin') {
-      clearAdminCache();
-      return null;
-    }
-
-    return cacheAdmin(
-      cachedAdmin.id,
-      cachedUser.username || cachedAdmin.username || 'Admin',
-      cachedUser.email || cachedAdmin.email || '',
-    );
-  }
-
-  const { data: userData, error: userError } = await supabase
-    .from('users')
-    .select('role, username, email')
-    .eq('id', authUser.id)
-    .single();
-
-  if (userError || !userData || userData.role !== 'admin') {
+  try {
+    const data = await callAdminApi<{ success: boolean; admin: AdminUserRecord }>({
+      action: 'session',
+      token,
+    });
+    return cacheAdmin(data.admin.id, data.admin.username, data.admin.email, data.admin.role);
+  } catch {
     clearAdminCache();
     return null;
   }
-
-  return cacheAdmin(
-    authUser.id,
-    userData.username || authUser.email || 'Admin',
-    userData.email || authUser.email || '',
-  );
 };
 
 export const registerAdmin = (username: string, email: string, password: string): AdminAuthResponse => {
@@ -233,6 +229,71 @@ export const loginAdmin = async (email: string, password: string): Promise<Admin
     message: 'წარმატებით შეხვედით სისტემაში',
     admin: safeAdmin as any,
   };
+};
+
+export const loginAdminSecure = async (login: string, password: string, secretCode: string): Promise<AdminAuthResponse> => {
+  try {
+    const data = await callAdminApi<{
+      success: boolean;
+      message: string;
+      admin: AdminUserRecord;
+      token: string;
+    }>({
+      action: 'login',
+      login,
+      password,
+      secretCode,
+    });
+
+    localStorage.setItem(STORAGE_KEY_ADMIN_AUTH, data.token);
+    const safeAdmin = cacheAdmin(data.admin.id, data.admin.username, data.admin.email, data.admin.role);
+
+    return {
+      success: true,
+      message: data.message,
+      admin: safeAdmin as any,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'შესვლა ვერ მოხერხდა',
+    };
+  }
+};
+
+export const listAdminUsers = async (): Promise<AdminUserRecord[]> => {
+  const token = getAdminToken();
+  if (!token) return [];
+  const data = await callAdminApi<{ success: boolean; admins: AdminUserRecord[] }>({
+    action: 'listAdmins',
+    token,
+  });
+  return data.admins;
+};
+
+export const createAdminUser = async (
+  input: Pick<AdminUserRecord, 'username' | 'email' | 'role'> & { password: string },
+): Promise<AdminUserRecord> => {
+  const token = getAdminToken();
+  if (!token) throw new Error('Admin session is missing');
+  const data = await callAdminApi<{ success: boolean; admin: AdminUserRecord }>({
+    action: 'createAdmin',
+    token,
+    ...input,
+  });
+  return data.admin;
+};
+
+export const updateAdminUserRole = async (id: string, role: AdminUserRecord['role']): Promise<void> => {
+  const token = getAdminToken();
+  if (!token) throw new Error('Admin session is missing');
+  await callAdminApi({ action: 'updateRole', token, id, role });
+};
+
+export const deleteAdminUser = async (id: string): Promise<void> => {
+  const token = getAdminToken();
+  if (!token) throw new Error('Admin session is missing');
+  await callAdminApi({ action: 'deleteAdmin', token, id });
 };
 
 export const requestPasswordReset = async (email: string): Promise<AdminAuthResponse> => {
