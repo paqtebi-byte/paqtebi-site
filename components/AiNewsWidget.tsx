@@ -3,6 +3,7 @@ import { ArrowUpRight, Bot, Clock, Sparkles } from 'lucide-react';
 import { Article } from '../types';
 import { fetchAiFocusedNews } from '../services/geminiService';
 import { LazyImage } from './LazyImage';
+import { formatDayMonthYear, getTodayDayMonthYear } from '../utils/dateFormat';
 
 interface AiNewsWidgetProps {
   onArticleClick?: (article: Article) => void;
@@ -34,7 +35,7 @@ export const AiNewsWidget: React.FC<AiNewsWidgetProps> = ({ onArticleClick }) =>
   useEffect(() => {
     let mounted = true;
     const cacheKey = 'paqtebi_ai_featured_daily_cache_v2';
-    const today = new Date().toLocaleDateString('ka-GE');
+    const today = getTodayDayMonthYear();
     const cached = localStorage.getItem(cacheKey);
 
     if (cached) {
@@ -128,7 +129,7 @@ export const AiNewsWidget: React.FC<AiNewsWidgetProps> = ({ onArticleClick }) =>
         <div className="p-5">
           <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 mb-2">
             <Clock size={12} />
-            <span>{featuredAiArticle.date}</span>
+            <span>{formatDayMonthYear(featuredAiArticle.date)}</span>
           </div>
           <h4 className="text-[17px] font-black text-gray-950 dark:text-white leading-snug group-hover:text-news-accent transition-colors">
             {featuredAiArticle.title}

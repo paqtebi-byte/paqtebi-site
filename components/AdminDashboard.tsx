@@ -20,6 +20,7 @@ import { CATEGORY_GROUPS } from '../config';
 import { useToast } from '../context/ToastContext';
 import { sanitizeInput } from '../utils/security';
 import { normalizeArticleHtml } from '../utils/articleHtml';
+import { formatDayMonthYear, getTodayDayMonthYear } from '../utils/dateFormat';
 import { LazyImage } from './LazyImage';
 import { BrandLogo } from './BrandLogo';
 import { LinkedText } from './LinkedText';
@@ -140,7 +141,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
     setCurrentArticle({
       id: Date.now().toString(),
-      date: new Date().toLocaleDateString('ka-GE'),
+      date: getTodayDayMonthYear(),
       imageUrl: '',
       author: 'ადმინისტრატორი',
       layout: 'standard',
@@ -193,7 +194,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       }
 
       const liveArticle = {
-        date: currentArticle.date || new Date().toLocaleDateString('ka-GE'),
+        date: currentArticle.date || getTodayDayMonthYear(),
         author: sanitizeInput(currentArticle.author || 'ადმინისტრატორი'),
         layout,
         title: sanitizeInput(currentArticle.title),
@@ -680,7 +681,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-semibold text-gray-800 truncate">{article.title}</div>
-                        <div className="text-xs text-gray-400">{article.category} · {article.date}</div>
+                        <div className="text-xs text-gray-400">{article.category} · {formatDayMonthYear(article.date)}</div>
                       </div>
                       <span className={`badge ${article.layout === 'hero' ? 'badge-hero' : article.layout === 'sidebar' ? 'badge-sidebar' : 'badge-feed'}`}>
                         {article.layout === 'hero' ? 'ბანერი' : article.layout === 'sidebar' ? 'გვერდი' : 'სიახლე'}
@@ -1041,7 +1042,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                               <span className="text-sm text-gray-500">{article.category}</span>
                             </td>
                             <td>
-                              <span className="text-sm text-gray-400">{article.date}</span>
+                              <span className="text-sm text-gray-400">{formatDayMonthYear(article.date)}</span>
                             </td>
                             <td>
                               <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -11,6 +11,7 @@ import { BrandLogo } from "./components/BrandLogo";
 import { LinkedText } from "./components/LinkedText";
 import { ArticleExcerpt } from "./components/ArticleExcerpt";
 import { stripHtmlToText } from "./utils/articleHtml";
+import { formatDayMonthYear } from "./utils/dateFormat";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { NotFound } from "./components/NotFound";
@@ -575,7 +576,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
                   {heroArticle?.date && (
                     <span className="text-gray-300 text-xs flex items-center gap-1">
                       <Clock size={11} />
-                      {heroArticle.date}
+                      {formatDayMonthYear(heroArticle.date)}
                     </span>
                   )}
                 </div>
@@ -778,7 +779,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
                       <div className="flex flex-col flex-1 p-4">
                         <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-2.5">
                           <Clock size={11} />
-                          <span>{article.date}</span>
+                          <span>{formatDayMonthYear(article.date)}</span>
                           {article.author && (
                             <>
                               <span>•</span>

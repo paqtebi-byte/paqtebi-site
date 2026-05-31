@@ -6,6 +6,7 @@ import { CommentSection } from './CommentSection';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { LazyImage } from './LazyImage';
 import { normalizeArticleHtml } from '../utils/articleHtml';
+import { formatDayMonthYear } from '../utils/dateFormat';
 import { summarizeArticle } from '../services/geminiService';
 import { Sparkles, Loader2 } from 'lucide-react';
 
@@ -240,7 +241,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
                 </div>
                 <div className="flex items-center gap-2">
                     <Clock size={16} aria-hidden="true" />
-                    <span>{article.date}</span>
+                    <span>{formatDayMonthYear(article.date)}</span>
                 </div>
              </div>
           </div>

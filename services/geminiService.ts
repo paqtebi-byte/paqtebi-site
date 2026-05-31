@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Article } from "../types";
+import { getTodayDayMonthYear } from "../utils/dateFormat";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 const ai = new GoogleGenAI({ apiKey: apiKey || '' });
@@ -15,7 +16,7 @@ const AI_IMAGE_BY_THEME: Record<AiImageTheme, string> = {
   creative: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?auto=format&fit=crop&w=900&q=80',
 };
 
-const getToday = () => new Date().toLocaleDateString('ka-GE');
+const getToday = () => getTodayDayMonthYear();
 
 const normalizeTheme = (theme: unknown): AiImageTheme => {
   if (
