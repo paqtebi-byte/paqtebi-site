@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { User } from '../types';
 import {
-  checkAdminAuth,
+  getAdminFromSession,
   getCurrentAdmin,
   getPublicCurrentUser,
   logoutAdmin as logoutAdminService,
@@ -11,13 +11,24 @@ import {
 } from '../services/authService';
 
 export const useAuth = () => {
-  // Initialize state synchronously to avoid redirect loops in ProtectedRoute
   const [currentUser, setCurrentUser] = useState<User | null>(getPublicCurrentUser());
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(checkAdminAuth());
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [isAdminAuthLoading, setIsAdminAuthLoading] = useState(true);
 
   // Listen for storage changes (optional, but good for multi-tab sync)
   useEffect(() => {
     let mounted = true;
+
+    const refreshAdminSession = async () => {
+      setIsAdminAuthLoading(true);
+      const admin = await getAdminFromSession();
+      if (mounted) {
+        setIsAdminAuthenticated(Boolean(admin));
+        setIsAdminAuthLoading(false);
+      }
+    };
+
+    refreshAdminSession();
 
     syncOAuthPublicUser().then((user) => {
       if (mounted && user) setCurrentUser(user);
@@ -28,7 +39,7 @@ export const useAuth = () => {
     });
 
     const handleStorageChange = () => {
-      setIsAdminAuthenticated(checkAdminAuth());
+      refreshAdminSession();
       setCurrentUser(getPublicCurrentUser());
     };
 
@@ -55,12 +66,17 @@ export const useAuth = () => {
   };
 
   const refreshAuth = () => {
-    setIsAdminAuthenticated(checkAdminAuth());
+    setIsAdminAuthLoading(true);
+    getAdminFromSession().then((admin) => {
+      setIsAdminAuthenticated(Boolean(admin));
+      setIsAdminAuthLoading(false);
+    });
   };
 
   return {
     currentUser,
     isAdminAuthenticated,
+    isAdminAuthLoading,
     logoutAdmin,
     logoutPublic,
     refreshUser,

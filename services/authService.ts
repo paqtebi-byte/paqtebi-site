@@ -1,7 +1,7 @@
 import { User, AuthResponse } from "../types";
 import type { Provider, User as SupabaseAuthUser } from "@supabase/supabase-js";
 import getSupabaseClient from "./supabaseClient";
-import { hashPassword, verifyPassword, generateResetToken, generateVerificationToken, isPasswordValid } from "../utils/passwordUtils";
+import { hashPassword, generateResetToken, isPasswordValid } from "../utils/passwordUtils";
 
 // Storage Keys
 const STORAGE_KEY_ADMIN_AUTH = 'paqtebi_admin_auth';
@@ -43,6 +43,62 @@ const saveAdminAccounts = (accounts: AdminAccount[]): void => {
   localStorage.setItem(STORAGE_KEY_ADMIN_ACCOUNTS, JSON.stringify(accounts));
 };
 
+const clearAdminCache = (): void => {
+  localStorage.removeItem(STORAGE_KEY_ADMIN_AUTH);
+  localStorage.removeItem(STORAGE_KEY_CURRENT_ADMIN);
+};
+
+const cacheAdmin = (
+  id: string,
+  username: string,
+  email: string,
+): Omit<AdminAccount, 'passwordHash'> => {
+  const safeAdmin = {
+    id,
+    username,
+    email,
+    createdAt: new Date().toISOString(),
+    emailVerified: true,
+    failedLoginAttempts: 0,
+  };
+
+  localStorage.setItem(STORAGE_KEY_CURRENT_ADMIN, JSON.stringify(safeAdmin));
+  return safeAdmin;
+};
+
+export const getAdminFromSession = async (): Promise<Omit<AdminAccount, 'passwordHash'> | null> => {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    clearAdminCache();
+    return null;
+  }
+
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  const authUser = sessionData.session?.user;
+
+  if (sessionError || !authUser) {
+    clearAdminCache();
+    return null;
+  }
+
+  const { data: userData, error: userError } = await supabase
+    .from('users')
+    .select('role, username, email')
+    .eq('id', authUser.id)
+    .single();
+
+  if (userError || !userData || userData.role !== 'admin') {
+    clearAdminCache();
+    return null;
+  }
+
+  return cacheAdmin(
+    authUser.id,
+    userData.username || authUser.email || 'Admin',
+    userData.email || authUser.email || '',
+  );
+};
+
 export const registerAdmin = (username: string, email: string, password: string): AdminAuthResponse => {
   return {
     success: false,
@@ -76,17 +132,11 @@ export const loginAdmin = async (email: string, password: string): Promise<Admin
     return { success: false, message: 'თქვენ არ გაქვთ ადმინისტრატორის უფლებები (Unauthorized role)' };
   }
 
-  // 3. Maintain compatibility with existing ProtectedRoute/localStorage logic
-  localStorage.setItem(STORAGE_KEY_ADMIN_AUTH, 'true');
-  const safeAdmin = {
-    id: authData.user.id,
-    username: userData.username || email,
-    email: userData.email || email,
-    createdAt: new Date().toISOString(),
-    emailVerified: true,
-    failedLoginAttempts: 0,
-  };
-  localStorage.setItem(STORAGE_KEY_CURRENT_ADMIN, JSON.stringify(safeAdmin));
+  const safeAdmin = cacheAdmin(
+    authData.user.id,
+    userData.username || email,
+    userData.email || email,
+  );
 
   return {
     success: true,
@@ -95,7 +145,21 @@ export const loginAdmin = async (email: string, password: string): Promise<Admin
   };
 };
 
-export const requestPasswordReset = (email: string): AdminAuthResponse & { resetToken?: string } => {
+export const requestPasswordReset = async (email: string): Promise<AdminAuthResponse> => {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { success: false, message: 'Supabase client not configured' };
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/admin/reset-password`,
+  });
+
+  if (error) return { success: false, message: error.message };
+
+  return {
+    success: true,
+    message: 'If this email is registered, a password reset link has been sent.',
+  };
+
   const accounts = getAdminAccounts();
   const admin = accounts.find(a => a.email === email);
 
@@ -119,11 +183,20 @@ export const requestPasswordReset = (email: string): AdminAuthResponse & { reset
   return {
     success: true,
     message: 'პაროლის აღდგენის ინსტრუქცია გამოიგზავნება თქვენს ელ-ფოსტაზე',
-    resetToken: admin.resetToken, // Return token for demo purposes
   };
 };
 
-export const verifyResetToken = (token: string): AdminAuthResponse => {
+export const verifyResetToken = async (token?: string): Promise<AdminAuthResponse> => {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { success: false, message: 'Supabase client not configured' };
+
+  const { data, error } = await supabase.auth.getSession();
+  if (error || !data.session) {
+    return { success: false, message: 'Invalid or expired password reset link' };
+  }
+
+  return { success: true, message: 'Reset session is valid' };
+
   const accounts = getAdminAccounts();
   const admin = accounts.find(a => a.resetToken === token);
 
@@ -139,7 +212,19 @@ export const verifyResetToken = (token: string): AdminAuthResponse => {
   return { success: true, message: 'ტოკენი ვალიდურია' };
 };
 
-export const resetPassword = (token: string, newPassword: string): AdminAuthResponse => {
+export const resetPassword = async (token: string | undefined, newPassword: string): Promise<AdminAuthResponse> => {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { success: false, message: 'Supabase client not configured' };
+
+  if (!isPasswordValid(newPassword)) {
+    return { success: false, message: 'Password does not meet the requirements' };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) return { success: false, message: error.message };
+
+  return { success: true, message: 'Password was updated successfully' };
+
   const accounts = getAdminAccounts();
   const admin = accounts.find(a => a.resetToken === token);
 
@@ -183,7 +268,7 @@ export const verifyEmail = (token: string): AdminAuthResponse => {
 };
 
 export const checkAdminAuth = (): boolean => {
-  return localStorage.getItem(STORAGE_KEY_ADMIN_AUTH) === 'true';
+  return false;
 };
 
 export const getCurrentAdmin = (): Omit<AdminAccount, 'passwordHash'> | null => {
@@ -192,8 +277,11 @@ export const getCurrentAdmin = (): Omit<AdminAccount, 'passwordHash'> | null => 
 };
 
 export const logoutAdmin = (): void => {
-  localStorage.removeItem(STORAGE_KEY_ADMIN_AUTH);
-  localStorage.removeItem(STORAGE_KEY_CURRENT_ADMIN);
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    supabase.auth.signOut().catch(() => undefined);
+  }
+  clearAdminCache();
 };
 
 // --- Public User Auth (unchanged) ---

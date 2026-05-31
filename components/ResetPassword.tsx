@@ -20,13 +20,19 @@ export const ResetPassword: React.FC = () => {
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     useEffect(() => {
-        if (token) {
-            const response = verifyResetToken(token);
+        let mounted = true;
+
+        verifyResetToken(token).then((response) => {
+            if (!mounted) return;
             setTokenValid(response.success);
             if (!response.success) {
                 addToast(response.message, 'error');
             }
-        }
+        });
+
+        return () => {
+            mounted = false;
+        };
     }, [token, addToast]);
 
     const validateForm = (): boolean => {
@@ -49,14 +55,14 @@ export const ResetPassword: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!validateForm() || !token) {
+        if (!validateForm()) {
             return;
         }
 
         setIsSubmitting(true);
 
         try {
-            const response = resetPassword(token, password);
+            const response = await resetPassword(token, password);
 
             if (response.success) {
                 addToast(response.message, 'success');
