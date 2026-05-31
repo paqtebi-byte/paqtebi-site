@@ -11,6 +11,8 @@ interface LazyImageProps {
   priority?: boolean;
 }
 
+const loadedImageSrcs = new Set<string>();
+
 export const LazyImage: React.FC<LazyImageProps> = ({
   src,
   alt,
@@ -21,11 +23,11 @@ export const LazyImage: React.FC<LazyImageProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [shouldLoad, setShouldLoad] = useState(loading === 'eager' || priority);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(() => loadedImageSrcs.has(src));
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
-    setIsLoaded(false);
+    setIsLoaded(loadedImageSrcs.has(src));
     setHasError(false);
     setShouldLoad(loading === 'eager' || priority);
   }, [src, loading, priority]);
@@ -84,7 +86,10 @@ export const LazyImage: React.FC<LazyImageProps> = ({
           loading={priority ? 'eager' : loading}
           decoding={priority ? 'sync' : 'async'}
           fetchPriority={priority ? 'high' : 'auto'}
-          onLoad={() => setIsLoaded(true)}
+          onLoad={() => {
+            loadedImageSrcs.add(src);
+            setIsLoaded(true);
+          }}
           onError={() => setHasError(true)}
         />
       )}
