@@ -2,41 +2,50 @@ import { useState, useEffect, useCallback } from "react";
 import { Article } from "../types";
 import apiService from "../services/apiService";
 
+type ArticleCacheKey = NonNullable<Article["contentType"]> | "all";
+
+const articleCache: Partial<Record<ArticleCacheKey, Article[]>> = {};
+
 export const useArticles = () => {
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [articles, setArticles] = useState<Article[]>(() => articleCache.all ?? []);
+  const [loading, setLoading] = useState<boolean>(() => !articleCache.all);
   const [error, setError] = useState<string | null>(null);
 
-  const loadAllNews = useCallback(async () => {
-    setLoading(true);
+  const loadNews = useCallback(async (contentType: ArticleCacheKey = "all") => {
+    const cachedArticles = articleCache[contentType];
+    if (cachedArticles) {
+      setArticles(cachedArticles);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     setError(null);
     try {
-      const localNews = await apiService.fetchArticles("all");
+      const localNews = await apiService.fetchArticles(contentType);
+      articleCache[contentType] = localNews;
+      if (contentType === "all") {
+        articleCache.article = localNews.filter((article) => (article.contentType || "article") === "article");
+      }
       setArticles(localNews);
       setLoading(false);
     } catch (err) {
       setError("ვერ მოხერხდა ახალი ამბების ჩატვირთვა.");
-      setArticles(await apiService.fetchArticles());
+      const fallbackArticles = await apiService.fetchArticles(contentType);
+      articleCache[contentType] = fallbackArticles;
+      setArticles(fallbackArticles);
       setLoading(false);
     }
   }, []);
 
-  const loadArticleNews = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const localNews = await apiService.fetchArticles("article");
-      setArticles(localNews);
-      setLoading(false);
-    } catch (err) {
-      setError("ვერ მოხერხდა ახალი ამბების ჩატვირთვა.");
-      setArticles(await apiService.fetchArticles("article"));
-      setLoading(false);
-    }
-  }, []);
+  const loadAllNews = useCallback(() => loadNews("all"), [loadNews]);
+  const loadArticleNews = useCallback(() => loadNews("article"), [loadNews]);
 
   const refreshLocalOnly = async () => {
-    setArticles(await apiService.fetchArticles());
+    const localNews = await apiService.fetchArticles();
+    articleCache.all = localNews;
+    articleCache.article = localNews.filter((article) => (article.contentType || "article") === "article");
+    setArticles(localNews);
   };
 
   const addArticle = async (article: Article) => {
