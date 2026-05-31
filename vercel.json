@@ -27,6 +27,17 @@
   ],
   "rewrites": [
     {
+      "source": "/article/:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|TelegramBot|WhatsApp|Discordbot|DiscordBot).*"
+        }
+      ],
+      "destination": "/api/article-meta?id=:id"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
