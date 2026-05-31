@@ -100,24 +100,16 @@ const findAdminByLogin = async (
 
   const trimmedLogin = login.trim();
   const fields = 'id, username, email, role, password, password_hash';
-  const primaryField = trimmedLogin.includes('@') ? 'email' : 'username';
-  const secondaryField = primaryField === 'email' ? 'username' : 'email';
 
-  const primary = await supabase
+  // Single query with OR — eliminates the double round-trip
+  const { data, error } = await supabase
     .from('users')
     .select(fields)
-    .eq(primaryField, trimmedLogin)
+    .or(`email.eq.${trimmedLogin},username.eq.${trimmedLogin}`)
     .maybeSingle();
 
-  if (primary.data) return primary.data as any;
-
-  const secondary = await supabase
-    .from('users')
-    .select(fields)
-    .eq(secondaryField, trimmedLogin)
-    .maybeSingle();
-
-  return (secondary.data as any) || null;
+  if (error || !data) return null;
+  return data as any;
 };
 
 const callAdminApi = async <T,>(payload: Record<string, unknown>): Promise<T> => {
