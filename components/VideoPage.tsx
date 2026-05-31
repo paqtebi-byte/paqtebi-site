@@ -5,6 +5,7 @@ import { ArrowLeft, Calendar, MessageCircle, PlayCircle, ThumbsDown, ThumbsUp, U
 import { Article, User as UserType } from "../types";
 import apiService from "../services/apiService";
 import { normalizeArticleHtml } from "../utils/articleHtml";
+import { formatDayMonthYear } from "../utils/dateFormat";
 import { ArticleExcerpt } from "./ArticleExcerpt";
 import { CommentSection } from "./CommentSection";
 import { LazyImage } from "./LazyImage";
@@ -112,7 +113,7 @@ export const VideoPage: React.FC<VideoPageProps> = ({ category, title, currentUs
                     </div>
                   </div>
                   <div className="p-5">
-                    <div className="mb-2 text-xs font-bold text-gray-400">{video.date}</div>
+                    <div className="mb-2 text-xs font-bold text-gray-400">{formatDayMonthYear(video.date)}</div>
                     <h2 className="line-clamp-2 text-lg font-black leading-snug group-hover:text-news-accent">{video.title}</h2>
                     <ArticleExcerpt summary={video.summary} className="mt-3" />
                   </div>
@@ -154,7 +155,7 @@ export const VideoPage: React.FC<VideoPageProps> = ({ category, title, currentUs
           <h1 className="text-3xl font-black leading-tight md:text-5xl">{selectedVideo.title}</h1>
           <div className="mt-5 flex flex-wrap items-center gap-4 border-b border-gray-100 pb-5 text-sm text-gray-500 dark:border-gray-800 dark:text-gray-400">
             <span className="inline-flex items-center gap-2"><User size={16} />{selectedVideo.author}</span>
-            <span className="inline-flex items-center gap-2"><Calendar size={16} />{selectedVideo.date}</span>
+            <span className="inline-flex items-center gap-2"><Calendar size={16} />{formatDayMonthYear(selectedVideo.date)}</span>
           </div>
         </div>
 

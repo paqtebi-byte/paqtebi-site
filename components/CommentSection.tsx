@@ -4,6 +4,7 @@ import { Send, User, Lock, Trash2, ThumbsUp, ThumbsDown, Heart, MessageCircle } 
 import { useToast } from '../context/ToastContext';
 import { useComments } from '../hooks/useComments';
 import { sanitizeInput } from '../utils/security';
+import { formatDayMonthYear } from '../utils/dateFormat';
 
 interface CommentSectionProps {
   articleId: string;
@@ -130,7 +131,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                     <div>
                       <div className="font-bold text-sm text-news-black dark:text-gray-100">{comment.author}</div>
                       <time className="text-xs text-gray-400 dark:text-gray-500">
-                        {new Date(comment.timestamp).toLocaleDateString('ka-GE')}
+                        {formatDayMonthYear(new Date(comment.timestamp))}
                       </time>
                     </div>
                     {(isAdmin || currentUser?.username === comment.author) && (

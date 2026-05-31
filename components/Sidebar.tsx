@@ -11,6 +11,7 @@ import { ZodiacWidget } from './ZodiacWidget';
 import { getAdPlacement } from '../services/storageService';
 import apiService from '../services/apiService';
 import { useToast } from '../context/ToastContext';
+import { formatDayMonthYear } from '../utils/dateFormat';
 
 interface SidebarProps {
   articles?: Article[];
@@ -300,7 +301,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({ articles = [], cust
                 <div className="p-4">
                   <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
                     <Clock size={11} />
-                    <span>{article.date}</span>
+                    <span>{formatDayMonthYear(article.date)}</span>
                   </div>
                   <h4 className="text-base font-bold text-gray-900 dark:text-white leading-snug group-hover:text-news-accent transition-colors line-clamp-2">
                     {article.title}
