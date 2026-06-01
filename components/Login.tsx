@@ -12,6 +12,7 @@ export const Login: React.FC = () => {
 
   const [formData, setFormData] = useState({ username: '', password: '', secretCode: '' });
   const [showPassword, setShowPassword] = useState(false);
+  const [showSecretCode, setShowSecretCode] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [focused, setFocused] = useState<string | null>(null);
@@ -196,18 +197,25 @@ export const Login: React.FC = () => {
                   />
                   <input
                     id="secretCode"
-                    type="password"
+                    type={showSecretCode ? 'text' : 'password'}
                     value={formData.secretCode}
                     onChange={(e) => setFormData({ ...formData, secretCode: e.target.value })}
                     onFocus={() => setFocused('secretCode')}
                     onBlur={() => setFocused(null)}
-                    className="w-full pl-10 pr-4 py-3 text-sm text-white rounded-xl transition-all outline-none"
+                    className="w-full pl-10 pr-11 py-3 text-sm text-white rounded-xl transition-all outline-none"
                     style={{
                       background: focused === 'secretCode' ? 'rgba(220,38,38,0.08)' : 'rgba(255,255,255,0.06)',
                       border: focused === 'secretCode' ? '1.5px solid rgba(220,38,38,0.5)' : '1.5px solid rgba(255,255,255,0.08)',
                     }}
                     placeholder="შეიყვანეთ საიდუმლო კოდი"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowSecretCode(!showSecretCode)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-400 transition-colors"
+                  >
+                    {showSecretCode ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
               </div>
 
