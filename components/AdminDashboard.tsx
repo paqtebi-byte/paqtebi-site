@@ -81,6 +81,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const isOwner = currentAdmin?.role === 'owner';
   const [polls, setPolls] = useState(getPolls());
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAvatarDropdownOpen, setIsAvatarDropdownOpen] = useState(false);
   const [newBreakingText, setNewBreakingText] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [currentArticle, setCurrentArticle] = useState<Partial<Article>>({});
@@ -188,10 +189,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     }
   };
 
-  const handleLogout = () => {
-    logoutAdmin();
+  const handleLogout = async () => {
+    await logoutAdmin();
     addToast('სესია დასრულდა', 'info');
     onLogout();
+    navigate('/admin/login', { replace: true });
   };
 
   /* ── ARTICLE HANDLERS ─────────────────────────────────────── */
@@ -669,8 +671,43 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               <Bell size={17} />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-news-accent rounded-full" />
             </button>
-            <div className="w-9 h-9 bg-gradient-to-br from-news-accent to-red-700 rounded-xl flex items-center justify-center text-white text-sm font-bold cursor-pointer shadow-sm">
-              A
+            {/* Avatar dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIsAvatarDropdownOpen((o) => !o)}
+                className="w-9 h-9 bg-gradient-to-br from-news-accent to-red-700 rounded-xl flex items-center justify-center text-white text-sm font-bold shadow-sm hover:opacity-90 transition-opacity"
+                aria-label="პროფილის მენიუ"
+              >
+                {currentAdmin?.username?.[0]?.toUpperCase() ?? 'A'}
+              </button>
+
+              {isAvatarDropdownOpen && (
+                <>
+                  {/* Backdrop */}
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsAvatarDropdownOpen(false)}
+                  />
+                  {/* Menu */}
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl border border-gray-100 shadow-xl py-1.5 z-50 animate-fade-up">
+                    <div className="px-4 py-2.5 border-b border-gray-100">
+                      <div className="text-xs font-bold text-gray-800 truncate">
+                        {currentAdmin?.username ?? 'ადმინისტრატორი'}
+                      </div>
+                      <div className="text-[10px] text-gray-400 truncate">
+                        {currentAdmin?.email ?? ''}
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut size={15} />
+                      სისტემიდან გასვლა
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </header>
