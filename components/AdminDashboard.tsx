@@ -51,18 +51,18 @@ const NEWS_PLACEHOLDERS = [
 ];
 const getRandomNewsImage = () => NEWS_PLACEHOLDERS[Math.floor(Math.random() * NEWS_PLACEHOLDERS.length)];
 
-/* â”€â”€ NAV CONFIG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── NAV CONFIG ───────────────────────────────────────────────── */
 const NAV_CONFIG: { tab: Tab; icon: any; label: string; badge?: string }[] = [
   { tab: 'ANALYTICS',     icon: BarChart3,    label: 'მიმოხილვა' },
   { tab: 'ARTICLES',      icon: FileText,     label: 'Articles' },
-  { tab: 'VIDEO_REPORTS', icon: Video,        label: 'ვიდეო áƒ áƒ”áƒžáƒáƒ áƒ¢áƒáƒŸáƒ”áƒ‘ი' },
-  { tab: 'PODCASTS',      icon: Mic,          label: 'áƒžáƒáƒ“áƒ™áƒáƒ¡áƒ¢áƒ”áƒ‘ი' },
+  { tab: 'VIDEO_REPORTS', icon: Video,        label: 'ვიდეო რეპორტაჟები' },
+  { tab: 'PODCASTS',      icon: Mic,          label: 'პოდკასტები' },
   { tab: 'INTERESTING',   icon: Star,         label: 'საინტერესო' },
   { tab: 'LIVE',          icon: Radio,        label: 'Live Streams' },
   { tab: 'ADS',           icon: Megaphone,    label: 'რეკლამა' },
-  { tab: 'USERS',         icon: Users,        label: 'áƒ›áƒáƒ›áƒ®áƒ›áƒáƒ áƒ”áƒ‘áƒšáƒ”áƒ‘ი' },
-  { tab: 'COMMENTS',      icon: MessageSquare,label: 'áƒ™áƒáƒ›áƒ”áƒœáƒ¢áƒáƒ áƒ”áƒ‘ი' },
-  { tab: 'POLLS',         icon: CheckCircle,  label: 'áƒ’áƒáƒ›áƒáƒ™áƒ˜áƒ—áƒ®áƒ•áƒ”áƒ‘ი' },
+  { tab: 'USERS',         icon: Users,        label: 'მომხმარებლები' },
+  { tab: 'COMMENTS',      icon: MessageSquare,label: 'კომენტარები' },
+  { tab: 'POLLS',         icon: CheckCircle,  label: 'გამოკითხვები' },
 ];
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
@@ -124,7 +124,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     try {
       setUsers(await listAdminUsers());
     } catch (error) {
-      addToast(error instanceof Error ? error.message : 'áƒáƒ“áƒ›áƒ˜áƒœáƒ”áƒ‘ის áƒ©áƒáƒ¢áƒ•áƒ˜áƒ áƒ—ვა ვერ მოხერხდა', 'error');
+      addToast(error instanceof Error ? error.message : 'ადმინების ჩატვირთვა ვერ მოხერხდა', 'error');
     } finally {
       setIsLoadingAdmins(false);
     }
@@ -146,14 +146,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       await refreshAdmins();
       addToast('ადმინი დაემატა', 'success');
     } catch (error) {
-      addToast(error instanceof Error ? error.message : 'ადმინის áƒ“áƒáƒ›áƒáƒ¢áƒ”áƒ‘ა ვერ მოხერხდა', 'error');
+      addToast(error instanceof Error ? error.message : 'ადმინის დამატება ვერ მოხერხდა', 'error');
     } finally {
       setIsSavingAdmin(false);
     }
   };
 
   const handleDeleteAdmin = async (id: string) => {
-    if (!isOwner || !window.confirm('áƒ¬áƒáƒ•áƒ¨áƒáƒšáƒáƒ— ეს ადმინი?')) return;
+    if (!isOwner || !window.confirm('წავშალოთ ეს ადმინი?')) return;
     try {
       await deleteAdminUser(id);
       await refreshAdmins();
@@ -168,7 +168,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     try {
       await updateAdminUserRole(id, role);
       await refreshAdmins();
-      addToast('როლი áƒ’ანახლდა', 'success');
+      addToast('როლი განახლდა', 'success');
     } catch (error) {
       addToast(error instanceof Error ? error.message : 'როლის შეცვლა ვერ მოხერხდა', 'error');
     }
@@ -194,7 +194,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     onLogout();
   };
 
-  /* â”€â”€ ARTICLE HANDLERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ── ARTICLE HANDLERS ─────────────────────────────────────── */
   const handleCreateNew = (forcedContentType?: Article['contentType']) => {
     const nextContentType = forcedContentType || getContentTypeForTab(activeTab);
     const isLive = nextContentType === 'live';
@@ -202,8 +202,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     
     const getCategoryForTab = (tab: Tab) => {
       if (tab === 'LIVE') return 'ლაივი';
-      if (tab === 'VIDEO_REPORTS') return 'ვიდეო áƒ áƒ”áƒžáƒáƒ áƒ¢áƒáƒŸáƒ”áƒ‘ი';
-      if (tab === 'PODCASTS') return 'áƒžáƒáƒ“áƒ™áƒáƒ¡áƒ¢áƒ”áƒ‘ი';
+      if (tab === 'VIDEO_REPORTS') return 'ვიდეო რეპორტაჟები';
+      if (tab === 'PODCASTS') return 'პოდკასტები';
       if (tab === 'INTERESTING') return 'საინტერესო';
       return 'პოლიტიკა';
     };
@@ -226,7 +226,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   const handleEdit = (article: Article) => {
     if (article.contentType === 'video') {
-      if (article.category === 'áƒžáƒáƒ“áƒ™áƒáƒ¡áƒ¢áƒ”áƒ‘ი') setActiveTab('PODCASTS');
+      if (article.category === 'პოდკასტები') setActiveTab('PODCASTS');
       else if (article.category === 'საინტერესო') setActiveTab('INTERESTING');
       else setActiveTab('VIDEO_REPORTS');
     }
@@ -238,7 +238,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm('ნამდვილად áƒ’áƒ¡áƒ£áƒ áƒ— წაშლა?')) {
+    if (window.confirm('ნამდვილად გსურთ წაშლა?')) {
       removeArticle(id);
       addToast('სტატია წაიშალა', 'success');
     }
@@ -258,7 +258,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
     if (contentType === 'live') {
       if (!currentArticle.title?.trim() || !hasVideoUrl) {
-        addToast(!hasVideoUrl ? 'áƒ¨áƒ”áƒáƒ•áƒ¡áƒ”áƒ— ლაივის áƒ‘მული' : 'áƒ¨áƒ”áƒáƒ•áƒ¡áƒ”áƒ— áƒ¡áƒáƒ—აური', 'error');
+        addToast(!hasVideoUrl ? 'შეავსეთ ლაივის ბმული' : 'შეავსეთ სათაური', 'error');
         return;
       }
 
@@ -284,7 +284,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         } else {
           await addArticle(liveArticle);
         }
-        addToast('ლაივი áƒ¬áƒáƒ áƒ›áƒáƒ¢áƒ”áƒ‘áƒ˜áƒ— შეინახა', 'success');
+        addToast('ლაივი წარმატებით შეინახა', 'success');
         setIsEditing(false);
       } catch (err) {
         addToast('ლაივის შენახვა ვერ მოხერხდა', 'error');
@@ -305,7 +305,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         title: sanitizeInput(currentArticle.title),
         summary: sanitizeInput(currentArticle.summary || ''),
         author: sanitizeInput(currentArticle.author || 'Admin'),
-        category: sanitizeInput(currentArticle.category || 'áƒ›áƒ—ავარი'),
+        category: sanitizeInput(currentArticle.category || 'მთავარი'),
         contentType,
         videoUrl: isVideoType ? sanitizeInput(currentArticle.videoUrl || '') : '',
         videoProvider: isVideoType ? currentArticle.videoProvider || 'youtube' : undefined,
@@ -321,18 +321,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         } else {
           await addArticle(safeArticle);
         }
-        addToast('სტატია áƒ¬áƒáƒ áƒ›áƒáƒ¢áƒ”áƒ‘áƒ˜áƒ— შეინახა', 'success');
+        addToast('სტატია წარმატებით შეინახა', 'success');
         setIsEditing(false);
       } catch (err: any) {
         const detail = err?.message || '';
-        const msg = detail.includes('column') ? 'DB სქემის შეცდომა â€” áƒ’áƒ—áƒ®áƒáƒ•áƒ— áƒ“áƒáƒ£áƒ™áƒáƒ•áƒ¨áƒ˜áƒ áƒ“áƒ”áƒ— ადმინს'
-          : detail.includes('size') || detail.includes('too large') ? 'áƒ¡áƒ£áƒ áƒáƒ—ი ძალიან დიდია â€” áƒ’áƒ—áƒ®áƒáƒ•áƒ— áƒ¨áƒ”áƒáƒ›áƒªáƒ˜áƒ áƒáƒ—'
+        const msg = detail.includes('column') ? 'DB სქემის შეცდომა — გთხოვთ დაუკავშირდეთ ადმინს'
+          : detail.includes('size') || detail.includes('too large') ? 'სურათი ძალიან დიდია — გთხოვთ შეამციროთ'
           : 'შენახვისას მოხდა შეცდომა';
         addToast(msg, 'error');
         console.error('[AdminDashboard] save error:', err);
       }
     } else {
-      addToast(isVideoType && !hasVideoUrl ? 'áƒ¨áƒ”áƒáƒ•áƒ¡áƒ”áƒ— ვიდეოს/ლაივის áƒ‘მული' : needsArticleBody ? 'áƒ¨áƒ”áƒáƒ•áƒ¡áƒ”áƒ— áƒ¡áƒáƒ—აური და სრული შინაარსი' : 'áƒ¨áƒ”áƒáƒ•áƒ¡áƒ”áƒ— áƒ‘ანერის áƒ¡áƒáƒ—აური', 'error');
+      addToast(isVideoType && !hasVideoUrl ? 'შეავსეთ ვიდეოს/ლაივის ბმული' : needsArticleBody ? 'შეავსეთ სათაური და სრული შინაარსი' : 'შეავსეთ ბანერის სათაური', 'error');
     }
   };
 
@@ -342,7 +342,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      addToast('მხოლოდ áƒ¡áƒ£áƒ áƒáƒ—ის áƒ¤áƒáƒ˜áƒšáƒ”áƒ‘ი áƒ“áƒáƒ¡áƒáƒ¨áƒ•áƒ”áƒ‘ია', 'error');
+      addToast('მხოლოდ სურათის ფაილები დასაშვებია', 'error');
       return;
     }
 
@@ -368,12 +368,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       const compressed = canvas.toDataURL('image/jpeg', 0.75);
       URL.revokeObjectURL(objectUrl);
       setCurrentArticle(prev => ({ ...prev, imageUrl: compressed }));
-      addToast('áƒ¡áƒ£áƒ áƒáƒ—ი áƒáƒ˜áƒ¢áƒ•áƒ˜áƒ áƒ—ა (' + Math.round(compressed.length / 1024) + ' KB)', 'success');
+      addToast('სურათი აიტვირთა (' + Math.round(compressed.length / 1024) + ' KB)', 'success');
     };
 
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      addToast('áƒ¡áƒ£áƒ áƒáƒ—ის áƒ©áƒáƒ¢áƒ•áƒ˜áƒ áƒ—ვა ვერ მოხერხდა', 'error');
+      addToast('სურათის ჩატვირთვა ვერ მოხერხდა', 'error');
     };
 
     img.src = objectUrl;
@@ -384,7 +384,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      addToast('მხოლოდ áƒ¡áƒ£áƒ áƒáƒ—ის áƒ¤áƒáƒ˜áƒšáƒ”áƒ‘ია áƒ“áƒáƒ¨áƒ•áƒ”áƒ‘ული', 'error');
+      addToast('მხოლოდ სურათის ფაილებია დაშვებული', 'error');
       return;
     }
 
@@ -406,12 +406,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       const compressed = canvas.toDataURL('image/webp', 0.85);
       URL.revokeObjectURL(objectUrl);
       setCurrentAd((prev) => ({ ...prev, imageUrl: compressed }));
-      addToast('რეკლამის áƒ¡áƒ£áƒ áƒáƒ—ი áƒáƒ˜áƒ¢áƒ•áƒ˜áƒ áƒ—ა', 'success');
+      addToast('რეკლამის სურათი აიტვირთა', 'success');
     };
 
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      addToast('áƒ¡áƒ£áƒ áƒáƒ—ის áƒ©áƒáƒ¢áƒ•áƒ˜áƒ áƒ—ვა ვერ მოხერხდა', 'error');
+      addToast('სურათის ჩატვირთვა ვერ მოხერხდა', 'error');
     };
 
     img.src = objectUrl;
@@ -421,12 +421,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     e.preventDefault();
 
     if (currentAd.active && !currentAd.imageUrl) {
-      addToast('აქტიური áƒ áƒ”áƒ™áƒšáƒáƒ›áƒ˜áƒ¡áƒ—ვის საჭიროა áƒ¡áƒ£áƒ áƒáƒ—ი', 'error');
+      addToast('აქტიური რეკლამისთვის საჭიროა სურათი', 'error');
       return;
     }
 
     if (currentAd.targetUrl && !/^https?:\/\//i.test(currentAd.targetUrl)) {
-      addToast('ლინკი უნდა áƒ˜áƒ¬áƒ§áƒ”áƒ‘ოდეს http:// ან https://-áƒ˜áƒ—', 'error');
+      addToast('ლინკი უნდა იწყებოდეს http:// ან https://-ით', 'error');
       return;
     }
 
@@ -443,7 +443,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   };
 
   const handleClearAd = async () => {
-    if (!window.confirm('áƒ¬áƒáƒ•áƒ¨áƒáƒšáƒáƒ— რეკლამის áƒáƒ“áƒ’ილი?')) return;
+    if (!window.confirm('წავშალოთ რეკლამის ადგილი?')) return;
 
     await apiService.clearAdPlacement();
     const emptyAd = getAdPlacement();
@@ -474,8 +474,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     let matchesType = false;
     if (activeTab === 'ARTICLES') matchesType = articleContentType === 'article';
     else if (activeTab === 'LIVE') matchesType = articleContentType === 'live';
-    else if (activeTab === 'VIDEO_REPORTS') matchesType = articleContentType === 'video' && a.category === 'ვიდეო áƒ áƒ”áƒžáƒáƒ áƒ¢áƒáƒŸáƒ”áƒ‘ი';
-    else if (activeTab === 'PODCASTS') matchesType = articleContentType === 'video' && a.category === 'áƒžáƒáƒ“áƒ™áƒáƒ¡áƒ¢áƒ”áƒ‘ი';
+    else if (activeTab === 'VIDEO_REPORTS') matchesType = articleContentType === 'video' && a.category === 'ვიდეო რეპორტაჟები';
+    else if (activeTab === 'PODCASTS') matchesType = articleContentType === 'video' && a.category === 'პოდკასტები';
     else if (activeTab === 'INTERESTING') matchesType = articleContentType === 'video' && a.category === 'საინტერესო';
     else matchesType = !isContentTab(activeTab);
     
@@ -494,17 +494,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const isSidebarLayout = currentLayout === 'sidebar';
   const contentViewTitle =
     activeTab === 'LIVE' ? 'Live Streams' :
-    activeTab === 'VIDEO_REPORTS' ? 'ვიდეო áƒ áƒ”áƒžáƒáƒ áƒ¢áƒáƒŸáƒ”áƒ‘ი' :
-    activeTab === 'PODCASTS' ? 'áƒžáƒáƒ“áƒ™áƒáƒ¡áƒ¢áƒ”áƒ‘ი' :
+    activeTab === 'VIDEO_REPORTS' ? 'ვიდეო რეპორტაჟები' :
+    activeTab === 'PODCASTS' ? 'პოდკასტები' :
     activeTab === 'INTERESTING' ? 'საინტერესო' :
     'Articles';
     
   const contentViewDescription =
-    activeTab === 'LIVE' ? 'áƒ›áƒáƒ áƒ—áƒ”áƒ— პირდაპირი áƒ”áƒ—ერის áƒ‘áƒ›áƒ£áƒšáƒ”áƒ‘ი და სტატუსი' :
-    activeTab === 'VIDEO_REPORTS' ? 'áƒ›áƒáƒ áƒ—áƒ”áƒ— ვიდეო áƒ áƒ”áƒžáƒáƒ áƒ¢áƒáƒŸáƒ”áƒ‘ი და არქივი' :
-    activeTab === 'PODCASTS' ? 'áƒ›áƒáƒ áƒ—áƒ”áƒ— áƒžáƒáƒ“áƒ™áƒáƒ¡áƒ¢áƒ”áƒ‘ი' :
-    activeTab === 'INTERESTING' ? 'áƒ›áƒáƒ áƒ—áƒ”áƒ— საინტერესო áƒ•áƒ˜áƒ“áƒ”áƒáƒ”áƒ‘ი' :
-    'áƒ›áƒáƒ áƒ—áƒ”áƒ— ახალი áƒáƒ›áƒ‘áƒ”áƒ‘ი, áƒ›áƒ—ავარი áƒ‘ანერი და პოპულარული áƒ’áƒ•áƒ”áƒ áƒ“áƒ˜áƒ—ი áƒ‘ლოკი';
+    activeTab === 'LIVE' ? 'მართეთ პირდაპირი ეთერის ბმულები და სტატუსი' :
+    activeTab === 'VIDEO_REPORTS' ? 'მართეთ ვიდეო რეპორტაჟები და არქივი' :
+    activeTab === 'PODCASTS' ? 'მართეთ პოდკასტები' :
+    activeTab === 'INTERESTING' ? 'მართეთ საინტერესო ვიდეოები' :
+    'მართეთ ახალი ამბები, მთავარი ბანერი და პოპულარული გვერდითი ბლოკი';
     
   const createButtonLabel =
     activeTab === 'LIVE' ? 'New Live Stream' :
@@ -522,13 +522,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   const tabLabel = NAV_CONFIG.find((n) => n.tab === activeTab)?.label || '';
 
-  /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  /* ────────────────────────────────────────────────────────────
      LAYOUT
-  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  ──────────────────────────────────────────────────────────── */
   return (
     <div className="flex h-screen font-sans" style={{ background: '#f0f2f5' }}>
 
-      {/* â”€â”€ SIDEBAR (Desktop) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── SIDEBAR (Desktop) ──────────────────────────────────── */}
       <aside
         className="hidden md:flex w-64 flex-col flex-shrink-0 z-20"
         style={{ background: 'linear-gradient(180deg, #0d0d0d 0%, #141414 100%)', borderRight: '1px solid rgba(255,255,255,0.05)' }}
@@ -584,12 +584,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
           >
             <LogOut size={16} />
-            სისტემიდან áƒ’ასვლა
+            სისტემიდან გასვლა
           </button>
         </div>
       </aside>
 
-      {/* â”€â”€ MOBILE TOP BAR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── MOBILE TOP BAR ────────────────────────────────────── */}
       <div
         className="md:hidden fixed top-0 left-0 right-0 z-50 flex justify-between items-center px-4 py-3"
         style={{ background: '#0d0d0d', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
@@ -628,13 +628,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             ))}
             <button onClick={handleLogout} className="admin-nav-item w-full text-left text-red-500">
               <LogOut size={17} />
-              სისტემიდან áƒ’ასვლა
+              სისტემიდან გასვლა
             </button>
           </nav>
         </div>
       )}
 
-      {/* â”€â”€ MAIN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── MAIN ──────────────────────────────────────────────── */}
       <main className="flex-1 flex flex-col overflow-hidden pt-14 md:pt-0">
 
         {/* Top Bar */}
@@ -658,7 +658,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               <Search size={15} className="text-gray-400" />
               <input
                 type="text"
-                placeholder="áƒ«áƒ”áƒ‘ნა..."
+                placeholder="ძებნა..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="bg-transparent outline-none text-gray-700 w-48 text-sm"
@@ -678,16 +678,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 md:p-8">
 
-          {/* â”€â”€ ANALYTICS TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── ANALYTICS TAB ────────────────────────────────── */}
           {activeTab === 'ANALYTICS' && (
             <div className="space-y-8 animate-fade-up">
               {/* Stat Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger">
                 {[
-                  { label: 'áƒ¡áƒ¢áƒáƒ¢áƒ˜áƒ”áƒ‘ი', value: analytics.totalArticles, icon: FileText, color: '#3b82f6', bg: '#eff6ff', change: '+12%', up: true },
-                  { label: 'áƒ›áƒáƒ›áƒ®áƒ›áƒáƒ áƒ”áƒ‘áƒšáƒ”áƒ‘ი', value: analytics.totalUsers, icon: Users, color: '#8b5cf6', bg: '#f5f3ff', change: '+5%', up: true },
-                  { label: 'áƒ™áƒáƒ›áƒ”áƒœáƒ¢áƒáƒ áƒ”áƒ‘ი', value: analytics.totalComments, icon: MessageSquare, color: '#f59e0b', bg: '#fffbeb', change: '0%', up: false },
-                  { label: 'áƒœáƒáƒ®áƒ•áƒ”áƒ‘ი', value: analytics.totalViews.toLocaleString(), icon: Eye, color: '#10b981', bg: '#f0fdf4', change: '+24%', up: true },
+                  { label: 'სტატიები', value: analytics.totalArticles, icon: FileText, color: '#3b82f6', bg: '#eff6ff', change: '+12%', up: true },
+                  { label: 'მომხმარებლები', value: analytics.totalUsers, icon: Users, color: '#8b5cf6', bg: '#f5f3ff', change: '+5%', up: true },
+                  { label: 'კომენტარები', value: analytics.totalComments, icon: MessageSquare, color: '#f59e0b', bg: '#fffbeb', change: '0%', up: false },
+                  { label: 'ნახვები', value: analytics.totalViews.toLocaleString(), icon: Eye, color: '#10b981', bg: '#f0fdf4', change: '+24%', up: true },
                 ].map((stat, i) => (
                   <div key={i} className="stat-card animate-fade-up">
                     <div className="flex items-start justify-between mb-4">
@@ -695,7 +695,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         <stat.icon size={20} />
                       </div>
                       <span className={`badge text-xs font-bold ${stat.up ? 'badge-green' : 'bg-gray-100 text-gray-500'}`}>
-                        {stat.up ? 'â†‘' : 'â†’'} {stat.change}
+                        {stat.up ? '↑' : '→'} {stat.change}
                       </span>
                     </div>
                     <div className="text-3xl font-black text-gray-900 mb-1">{stat.value}</div>
@@ -706,12 +706,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
               {/* Quick actions */}
               <div>
-                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">სწრაფი áƒ›áƒáƒ¥áƒ›áƒ”áƒ“áƒ”áƒ‘áƒ”áƒ‘ი</h3>
+                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">სწრაფი მოქმედებები</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {[
-                    { icon: Plus, label: 'ახალი სტატია', desc: 'áƒ’ამოაქვეყნე ახალი მასალა', action: () => { switchTab('ARTICLES'); handleCreateNew('article'); }, color: '#dc2626', bg: '#fef2f2' },
-                    { icon: Users, label: 'áƒ›áƒáƒ›áƒ®áƒ›áƒáƒ áƒ”áƒ‘áƒšáƒ”áƒ‘ი', desc: 'ნახე áƒ“áƒáƒ áƒ”áƒ’áƒ˜áƒ¡áƒ¢áƒ áƒ˜áƒ áƒ”áƒ‘áƒ£áƒšáƒ”áƒ‘ი', action: () => switchTab('USERS'), color: '#8b5cf6', bg: '#f5f3ff' },
-                    { icon: Activity, label: 'Breaking News', desc: 'áƒ’ანაახლე ახალი áƒáƒ›áƒ‘áƒ”áƒ‘ი', action: () => switchTab('ARTICLES'), color: '#f59e0b', bg: '#fffbeb' },
+                    { icon: Plus, label: 'ახალი სტატია', desc: 'გამოაქვეყნე ახალი მასალა', action: () => { switchTab('ARTICLES'); handleCreateNew('article'); }, color: '#dc2626', bg: '#fef2f2' },
+                    { icon: Users, label: 'მომხმარებლები', desc: 'ნახე დარეგისტრირებულები', action: () => switchTab('USERS'), color: '#8b5cf6', bg: '#f5f3ff' },
+                    { icon: Activity, label: 'Breaking News', desc: 'განაახლე ახალი ამბები', action: () => switchTab('ARTICLES'), color: '#f59e0b', bg: '#fffbeb' },
                   ].map((item, i) => (
                     <button
                       key={i}
@@ -736,7 +736,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid #f3f4f6' }}>
                   <div className="flex items-center gap-2">
                     <TrendingUp size={16} className="text-news-accent" />
-                    <h3 className="font-bold text-gray-800">áƒ‘ოლო áƒ¡áƒ¢áƒáƒ¢áƒ˜áƒ”áƒ‘ი</h3>
+                    <h3 className="font-bold text-gray-800">ბოლო სტატიები</h3>
                   </div>
                   <button onClick={() => switchTab('ARTICLES')} className="text-xs text-news-accent font-bold hover:underline flex items-center gap-1">
                     ყველა <ChevronRight size={13} />
@@ -750,25 +750,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-semibold text-gray-800 truncate">{article.title}</div>
-                        <div className="text-xs text-gray-400">{article.category} Â· {formatDayMonthYear(article.date)}</div>
+                        <div className="text-xs text-gray-400">{article.category} · {formatDayMonthYear(article.date)}</div>
                       </div>
                       <span className={`badge ${article.layout === 'hero' ? 'badge-hero' : article.layout === 'sidebar' ? 'badge-sidebar' : 'badge-feed'}`}>
-                        {article.layout === 'hero' ? 'áƒ‘ანერი' : article.layout === 'sidebar' ? 'áƒ’ვერდი' : 'სიახლე'}
+                        {article.layout === 'hero' ? 'ბანერი' : article.layout === 'sidebar' ? 'გვერდი' : 'სიახლე'}
                       </span>
                     </div>
                   ))}
                   {articles.length === 0 && (
-                    <div className="py-12 text-center text-gray-400 text-sm">áƒ¡áƒ¢áƒáƒ¢áƒ˜áƒ”áƒ‘ი არ არის</div>
+                    <div className="py-12 text-center text-gray-400 text-sm">სტატიები არ არის</div>
                   )}
                 </div>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ CONTENT MANAGEMENT TABS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── CONTENT MANAGEMENT TABS ───────────────────────── */}
           {isContentTab(activeTab) && (
             isEditing ? (
-              /* â”€â”€ ARTICLE EDITOR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+              /* ── ARTICLE EDITOR ─────────────────────────── */
               <div className="bg-white rounded-2xl overflow-hidden animate-slide-right" style={{ border: '1px solid #e5e7eb' }}>
                 <div className="flex items-center justify-between px-8 py-5" style={{ borderBottom: '1px solid #f3f4f6', background: '#fafafa' }}>
                   <div>
@@ -778,10 +778,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       </div>
                       <div>
                         <h3 className="text-lg font-bold text-gray-900">
-                          {isLiveContent ? 'Live Stream-ის áƒ›áƒáƒ áƒ—ვა' : isVideoContent ? 'ვიდეო / არქივის მასალა' : isHeroLayout ? 'áƒ›áƒ—ავარი áƒ‘ანერის áƒ›áƒáƒ áƒ—ვა' : isSidebarLayout ? 'áƒ’áƒ•áƒ”áƒ áƒ“áƒ˜áƒ—ი áƒ‘ლოკის მასალა' : 'ახალი áƒáƒ›áƒ‘ის áƒ áƒ”áƒ“áƒáƒ¥áƒ¢áƒ˜áƒ áƒ”áƒ‘ა'}
+                          {isLiveContent ? 'Live Stream-ის მართვა' : isVideoContent ? 'ვიდეო / არქივის მასალა' : isHeroLayout ? 'მთავარი ბანერის მართვა' : isSidebarLayout ? 'გვერდითი ბლოკის მასალა' : 'ახალი ამბის რედაქტირება'}
                         </h3>
                         <p className="text-xs text-gray-400 mt-0.5">
-                          {isLiveContent ? 'საჭიროა მხოლოდ áƒ¡áƒáƒ—აური, live URL და სტატუსი' : isVideoContent ? 'áƒ“áƒáƒáƒ›áƒáƒ¢áƒ”áƒ— ვიდეოს áƒ‘მული, აღწერა და საჭირო ტექსტი' : isHeroLayout ? 'áƒ¨áƒ”áƒáƒ•áƒ¡áƒ”áƒ— მხოლოდ áƒ‘ანერის áƒ¡áƒáƒ—აური და áƒ¡áƒ£áƒ áƒáƒ—ი' : 'áƒ¨áƒ”áƒáƒ•áƒ¡áƒ”áƒ— áƒ¡áƒ¢áƒáƒ¢áƒ˜áƒ˜áƒ¡áƒ—ვის საჭირო áƒ•áƒ”áƒšáƒ”áƒ‘ი'}
+                          {isLiveContent ? 'საჭიროა მხოლოდ სათაური, live URL და სტატუსი' : isVideoContent ? 'დაამატეთ ვიდეოს ბმული, აღწერა და საჭირო ტექსტი' : isHeroLayout ? 'შეავსეთ მხოლოდ ბანერის სათაური და სურათი' : 'შეავსეთ სტატიისთვის საჭირო ველები'}
                         </p>
                       </div>
                     </div>
@@ -798,9 +798,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     <label className="block text-sm font-bold text-gray-700 mb-3">მასალის ტიპი</label>
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                       {[
-                        { id: 'hero', icon: Monitor, label: 'áƒ›áƒ—ავარი áƒ‘ანერი', desc: 'áƒ–ედა დიდი სტატია' },
-                        { id: 'standard', icon: LayoutTemplate, label: 'áƒ‘ოლო áƒ¡áƒ˜áƒáƒ®áƒšáƒ”áƒ”áƒ‘ი', desc: 'áƒ©áƒ•áƒ”áƒ£áƒšáƒ”áƒ‘რივი სტატია' },
-                        { id: 'sidebar', icon: Columns, label: 'áƒ’áƒ•áƒ”áƒ áƒ“áƒ˜áƒ—ი áƒ‘ლოკი', desc: 'მარჯვენა სვეტი' },
+                        { id: 'hero', icon: Monitor, label: 'მთავარი ბანერი', desc: 'ზედა დიდი სტატია' },
+                        { id: 'standard', icon: LayoutTemplate, label: 'ბოლო სიახლეები', desc: 'ჩვეულებრივი სტატია' },
+                        { id: 'sidebar', icon: Columns, label: 'გვერდითი ბლოკი', desc: 'მარჯვენა სვეტი' },
                       ].map(({ id, icon: Icon, label, desc }) => (
                         <label
                           key={id}
@@ -832,8 +832,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                           {currentContentType === 'live' ? <Radio size={19} /> : <PlayCircle size={19} />}
                         </div>
                         <div>
-                          <h4 className="text-sm font-bold text-gray-800">{isLiveContent ? 'Live URL და სტატუსი' : 'ვიდეო áƒžáƒáƒ áƒáƒ›áƒ”áƒ¢áƒ áƒ”áƒ‘ი'}</h4>
-                          <p className="text-xs text-gray-400 mt-0.5">{isLiveContent ? 'ლაივის áƒ›áƒ—ავარი ველია áƒ‘მული - აქ áƒ©áƒáƒ¡áƒ•áƒ˜áƒ— სტრიმის áƒ›áƒ˜áƒ¡áƒáƒ›áƒáƒ áƒ—ი' : 'áƒ©áƒáƒ¡áƒ•áƒ˜áƒ— YouTube, Facebook ან სხვა ვიდეოს áƒ‘მული'}</p>
+                          <h4 className="text-sm font-bold text-gray-800">{isLiveContent ? 'Live URL და სტატუსი' : 'ვიდეო პარამეტრები'}</h4>
+                          <p className="text-xs text-gray-400 mt-0.5">{isLiveContent ? 'ლაივის მთავარი ველია ბმული - აქ ჩასვით სტრიმის მისამართი' : 'ჩასვით YouTube, Facebook ან სხვა ვიდეოს ბმული'}</p>
                         </div>
                       </div>
 
@@ -893,7 +893,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   <div className={`grid grid-cols-1 ${isHeroLayout || isLiveContent ? '' : 'md:grid-cols-2'} gap-5`}>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">
-                        {isHeroLayout ? 'áƒ‘ანერის áƒ¡áƒáƒ—აური *' : 'áƒ¡áƒáƒ—აური *'}
+                        {isHeroLayout ? 'ბანერის სათაური *' : 'სათაური *'}
                       </label>
                       <input
                         type="text"
@@ -901,19 +901,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         value={currentArticle.title || ''}
                         onChange={(e) => setCurrentArticle({ ...currentArticle, title: e.target.value })}
                         className="form-input"
-                        placeholder={isHeroLayout ? 'áƒ¨áƒ”áƒ˜áƒ§áƒ•áƒáƒœáƒ”áƒ— áƒ‘ანერის áƒ¡áƒáƒ—აური...' : 'áƒ¨áƒ”áƒ˜áƒ§áƒ•áƒáƒœáƒ”áƒ— áƒ¡áƒáƒ—აური...'}
+                        placeholder={isHeroLayout ? 'შეიყვანეთ ბანერის სათაური...' : 'შეიყვანეთ სათაური...'}
                       />
                     </div>
                     {!isHeroLayout && !isLiveContent && (
                       <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">áƒ™áƒáƒ¢áƒ”áƒ’ორია</label>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">კატეგორია</label>
                         <select
                           value={currentArticle.category || ''}
                           onChange={(e) => setCurrentArticle({ ...currentArticle, category: e.target.value })}
                           required
                           className="form-input"
                         >
-                          <option value="" disabled>áƒáƒ˜áƒ áƒ©áƒ˜áƒ”áƒ— áƒ™áƒáƒ¢áƒ”áƒ’ორია</option>
+                          <option value="" disabled>აირჩიეთ კატეგორია</option>
                           {Object.entries(CATEGORY_GROUPS).map(([group, items]) => (
                             <optgroup key={group} label={group}>
                               {items.map((item) => <option key={item} value={item}>{item}</option>)}
@@ -936,7 +936,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         value={currentArticle.summary || ''}
                         onChange={(e) => setCurrentArticle({ ...currentArticle, summary: e.target.value })}
                         className="form-input resize-none"
-                        placeholder={isHeroLayout ? 'მოკლე ტექსტი áƒ›áƒ—ავარი áƒ‘áƒáƒœáƒ”áƒ áƒ˜áƒ¡áƒ—ვის...' : isSidebarLayout ? 'მოკლე ტექსტი áƒ’áƒ•áƒ”áƒ áƒ“áƒ˜áƒ—ი áƒ‘áƒšáƒáƒ™áƒ˜áƒ¡áƒ—ვის...' : 'áƒ’áƒáƒ›áƒáƒ©áƒœáƒ“áƒ”áƒ‘ა áƒ›áƒ—ავარ áƒ’áƒ•áƒ”áƒ áƒ“áƒ–ე...'}
+                        placeholder={isHeroLayout ? 'მოკლე ტექსტი მთავარი ბანერისთვის...' : isSidebarLayout ? 'მოკლე ტექსტი გვერდითი ბლოკისთვის...' : 'გამოჩნდება მთავარ გვერდზე...'}
                       />
                     </div>
                   )}
@@ -945,7 +945,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   {!isLiveContent && (
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">
-                      {isHeroLayout ? 'áƒ‘ანერის áƒ¡áƒ£áƒ áƒáƒ—ი' : isLiveContent ? 'áƒ›áƒ—ავარი áƒ¡áƒ£áƒ áƒáƒ—ი (áƒ¡áƒ£áƒ áƒ•áƒ˜áƒšáƒ˜áƒ¡áƒáƒ›áƒ”áƒ‘რ)' : 'áƒ›áƒ—ავარი áƒ¡áƒ£áƒ áƒáƒ—ი'}
+                      {isHeroLayout ? 'ბანერის სურათი' : isLiveContent ? 'მთავარი სურათი (სურვილისამებრ)' : 'მთავარი სურათი'}
                     </label>
                     <div className="rounded-xl overflow-hidden" style={{ border: '2px dashed #e5e7eb' }}>
                       {currentArticle.imageUrl ? (
@@ -954,7 +954,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                           {isHeroLayout && (
                             <div className="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-black/80 to-transparent">
                               <div className="max-w-2xl text-white font-black text-2xl leading-tight">
-                                {currentArticle.title || 'áƒ‘ანერის áƒ¡áƒáƒ—აური'}
+                                {currentArticle.title || 'ბანერის სათაური'}
                               </div>
                             </div>
                           )}
@@ -964,7 +964,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                               onClick={() => setCurrentArticle({ ...currentArticle, imageUrl: '' })}
                               className="flex items-center gap-2 bg-white text-red-500 px-4 py-2 rounded-lg text-sm font-bold shadow-lg"
                             >
-                              <Trash2 size={16} /> áƒ¡áƒ£áƒ áƒáƒ—ის წაშლა
+                              <Trash2 size={16} /> სურათის წაშლა
                             </button>
                           </div>
                         </div>
@@ -972,7 +972,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         <div className={`${isHeroLayout ? 'py-16' : 'py-10'} flex flex-col items-center justify-center text-center bg-gray-50`}>
                           <UploadCloud size={40} className="text-gray-300 mb-3" />
                           <p className="text-sm font-semibold text-gray-500 mb-4">
-                            {isHeroLayout ? 'áƒáƒ¢áƒ•áƒ˜áƒ áƒ—áƒ”áƒ— áƒ¤áƒáƒ áƒ—ო áƒ‘ანერის áƒ¡áƒ£áƒ áƒáƒ—ი' : isLiveContent ? 'áƒšáƒáƒ˜áƒ•áƒ˜áƒ¡áƒ—ვის áƒ¡áƒ£áƒ áƒáƒ—ი áƒáƒ£áƒªáƒ˜áƒšáƒ”áƒ‘ელი არ არის' : 'áƒáƒ¢áƒ•áƒ˜áƒ áƒ—áƒ”áƒ— ფოტო ან áƒ’áƒáƒ›áƒáƒ˜áƒ§áƒ”áƒœáƒ”áƒ— áƒ¨áƒ”áƒ›áƒ—áƒ®áƒ•áƒ”áƒ•áƒ˜áƒ—ი'}
+                            {isHeroLayout ? 'ატვირთეთ ფართო ბანერის სურათი' : isLiveContent ? 'ლაივისთვის სურათი აუცილებელი არ არის' : 'ატვირთეთ ფოტო ან გამოიყენეთ შემთხვევითი'}
                           </p>
                           <div className="flex gap-3">
                             <label className="btn-primary cursor-pointer text-sm">
@@ -986,7 +986,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                               className="btn-secondary text-sm"
                             >
                               <Zap size={15} />
-                              áƒ¨áƒ”áƒ›áƒ—áƒ®áƒ•áƒ”áƒ•áƒ˜áƒ—ი
+                              შემთხვევითი
                             </button>
                           </div>
                         </div>
@@ -1014,17 +1014,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   {/* Actions */}
                   <div className="flex items-center justify-between pt-6" style={{ borderTop: '1px solid #f3f4f6' }}>
                     <button type="button" onClick={() => setIsEditing(false)} className="btn-secondary">
-                      áƒ’áƒáƒ£áƒ¥áƒ›áƒ”áƒ‘ა
+                      გაუქმება
                     </button>
                     <button type="submit" className="btn-primary">
                       <Save size={16} />
-                      {isHeroLayout ? 'áƒ‘ანერის შენახვა' : (currentArticle as any)._originalId ? 'სტატიის áƒ’áƒáƒœáƒáƒ®áƒšáƒ”áƒ‘ა' : 'შენახვა და áƒ’áƒáƒ›áƒáƒ¥áƒ•áƒ”áƒ§áƒœáƒ”áƒ‘ა'}
+                      {isHeroLayout ? 'ბანერის შენახვა' : (currentArticle as any)._originalId ? 'სტატიის განახლება' : 'შენახვა და გამოქვეყნება'}
                     </button>
                   </div>
                 </form>
               </div>
             ) : (
-              /* â”€â”€ ARTICLES LIST â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+              /* ── ARTICLES LIST ─────────────────────────────── */
               <div className="space-y-6 animate-fade-up">
                 {/* Breaking News */}
                 {activeTab === 'ARTICLES' && (
@@ -1040,7 +1040,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       type="text"
                       value={newBreakingText}
                       onChange={(e) => setNewBreakingText(e.target.value)}
-                      placeholder="áƒ“áƒáƒáƒ›áƒáƒ¢áƒ”áƒ— ახალი áƒáƒ›áƒ‘ავი..."
+                      placeholder="დაამატეთ ახალი ამბავი..."
                       className="form-input flex-1"
                     />
                     <button type="submit" className="btn-primary px-4">
@@ -1084,11 +1084,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       <thead>
                         <tr>
                           <th>სტატუსი</th>
-                          <th>áƒ¡áƒ£áƒ áƒáƒ—ი</th>
-                          <th>áƒ¡áƒáƒ—აური</th>
-                          <th>áƒ™áƒáƒ¢áƒ”áƒ’ორია</th>
-                          <th>áƒ—არიღი</th>
-                          <th style={{ textAlign: 'right' }}>áƒ›áƒáƒ¥áƒ›áƒ”áƒ“áƒ”áƒ‘ა</th>
+                          <th>სურათი</th>
+                          <th>სათაური</th>
+                          <th>კატეგორია</th>
+                          <th>თარიღი</th>
+                          <th style={{ textAlign: 'right' }}>მოქმედება</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1096,7 +1096,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                           <tr key={article.id} className="group">
                             <td>
                               <span className={`badge ${article.layout === 'hero' ? 'badge-hero' : article.layout === 'sidebar' ? 'badge-sidebar' : 'badge-feed'}`}>
-                                {article.contentType === 'live' ? 'live' : article.contentType === 'video' ? 'video' : article.layout === 'hero' ? 'áƒ‘ანერი' : article.layout === 'sidebar' ? 'áƒ’ვერდი' : 'სიახლე'}
+                                {article.contentType === 'live' ? 'live' : article.contentType === 'video' ? 'video' : article.layout === 'hero' ? 'ბანერი' : article.layout === 'sidebar' ? 'გვერდი' : 'სიახლე'}
                               </span>
                             </td>
                             <td>
@@ -1129,7 +1129,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                           <tr>
                             <td colSpan={6} className="py-16 text-center text-gray-400">
                               <FileText size={36} className="mx-auto mb-3 text-gray-200" />
-                              მასალა არ áƒ›áƒáƒ˜áƒ«áƒ”áƒ‘ნა
+                              მასალა არ მოიძებნა
                             </td>
                           </tr>
                         )}
@@ -1141,7 +1141,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             )
           )}
 
-          {/* â”€â”€ USERS TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── USERS TAB ─────────────────────────────────────── */}
           {activeTab === 'ADS' && (
             <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 animate-fade-up">
               <form onSubmit={handleSaveAd} className="bg-white rounded-2xl overflow-hidden" style={{ border: '1px solid #e5e7eb' }}>
@@ -1151,12 +1151,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       <Megaphone size={18} />
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-gray-900">სარეკლამო áƒáƒ“áƒ’ილი</h3>
-                      <p className="text-xs text-gray-400 mt-0.5">მარჯვენა სვეტში 300 x 250 áƒ‘ანერის áƒ›áƒáƒ áƒ—ვა</p>
+                      <h3 className="text-lg font-bold text-gray-900">სარეკლამო ადგილი</h3>
+                      <p className="text-xs text-gray-400 mt-0.5">მარჯვენა სვეტში 300 x 250 ბანერის მართვა</p>
                     </div>
                   </div>
                   <span className={`badge ${currentAd.active ? 'badge-green' : 'bg-gray-100 text-gray-500'}`}>
-                    {currentAd.active ? 'აქტიური' : 'áƒ’áƒáƒ›áƒáƒ áƒ—ული'}
+                    {currentAd.active ? 'აქტიური' : 'გამორთული'}
                   </span>
                 </div>
 
@@ -1173,19 +1173,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       />
                     </div>
                     <div>
-                      <div className="font-bold text-gray-800 text-sm">რეკლამის áƒ©áƒ•áƒ”áƒœáƒ”áƒ‘ა áƒ¡áƒáƒ˜áƒ¢áƒ–ე</div>
-                      <div className="text-xs text-gray-400 mt-0.5">áƒ’áƒáƒ›áƒáƒ áƒ—ვისას ისევ placeholder áƒ’áƒáƒ›áƒáƒ©áƒœáƒ“áƒ”áƒ‘ა</div>
+                      <div className="font-bold text-gray-800 text-sm">რეკლამის ჩვენება საიტზე</div>
+                      <div className="text-xs text-gray-400 mt-0.5">გამორთვისას ისევ placeholder გამოჩნდება</div>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">რეკლამის áƒ¡áƒáƒ—აური</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">რეკლამის სათაური</label>
                     <input
                       type="text"
                       value={currentAd.title}
                       onChange={(e) => setCurrentAd({ ...currentAd, title: e.target.value })}
                       className="form-input"
-                      placeholder="áƒ›áƒáƒ’: პარტნიორის áƒ‘ანერი"
+                      placeholder="მაგ: პარტნიორის ბანერი"
                     />
                   </div>
 
@@ -1201,7 +1201,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">áƒ‘ანერის áƒ¡áƒ£áƒ áƒáƒ—ი</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">ბანერის სურათი</label>
                     <div className="rounded-xl overflow-hidden" style={{ border: '2px dashed #e5e7eb' }}>
                       {currentAd.imageUrl ? (
                         <div className="relative group bg-gray-950">
@@ -1212,17 +1212,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                               onClick={() => setCurrentAd({ ...currentAd, imageUrl: '' })}
                               className="flex items-center gap-2 bg-white text-red-500 px-4 py-2 rounded-lg text-sm font-bold shadow-lg"
                             >
-                              <Trash2 size={16} /> áƒ¡áƒ£áƒ áƒáƒ—ის წაშლა
+                              <Trash2 size={16} /> სურათის წაშლა
                             </button>
                           </div>
                         </div>
                       ) : (
                         <div className="py-10 flex flex-col items-center justify-center text-center bg-gray-50">
                           <UploadCloud size={40} className="text-gray-300 mb-3" />
-                          <p className="text-sm font-semibold text-gray-500 mb-4">áƒáƒ¢áƒ•áƒ˜áƒ áƒ—ე 300 x 250 ფორმატის რეკლამა</p>
+                          <p className="text-sm font-semibold text-gray-500 mb-4">ატვირთე 300 x 250 ფორმატის რეკლამა</p>
                           <label className="btn-primary cursor-pointer text-sm">
                             <ImageIcon size={15} />
-                            áƒ¡áƒ£áƒ áƒáƒ—ის არჩევა
+                            სურათის არჩევა
                             <input type="file" accept="image/*" onChange={handleAdImageUpload} className="hidden" />
                           </label>
                         </div>
@@ -1246,7 +1246,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               <div className="bg-white rounded-2xl p-6 h-fit" style={{ border: '1px solid #e5e7eb' }}>
                 <div className="flex items-center gap-2 mb-4">
                   <Eye size={16} className="text-news-accent" />
-                  <h3 className="font-bold text-gray-800">áƒ¡áƒáƒ˜áƒ¢áƒ–ე áƒ’ამოჩენა</h3>
+                  <h3 className="font-bold text-gray-800">საიტზე გამოჩენა</h3>
                 </div>
                 <div className="rounded-2xl p-5 text-center bg-gray-50 border border-dashed border-gray-200">
                   <span className="text-xs text-gray-400 uppercase tracking-widest block mb-3">რეკლამა</span>
@@ -1267,10 +1267,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       <div className="relative z-10 flex h-full flex-col justify-between p-5">
                         <div>
                           <div className="mb-3 text-[10px] font-black uppercase tracking-[0.32em] text-red-100/80">სარეკლამო სივრცე</div>
-                          <div className="text-sm font-bold text-white/90">áƒ—ქვენი</div>
+                          <div className="text-sm font-bold text-white/90">თქვენი</div>
                           <div className="mt-1 text-[28px] font-black leading-none text-white">სარეკლამო</div>
                           <div className="mt-1 text-[28px] font-black leading-none text-transparent" style={{ WebkitTextStroke: '1px rgba(255,255,255,0.55)' }}>
-                            áƒáƒ“áƒ’ილი
+                            ადგილი
                           </div>
                         </div>
                         <div className="flex items-end justify-between gap-3">
@@ -1280,7 +1280,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                             disabled
                             className="rounded-sm bg-[#e11d24] px-4 py-2 text-xs font-black text-white shadow-lg opacity-80 cursor-not-allowed"
                           >
-                            áƒ“áƒáƒ’áƒ•áƒ˜áƒ™áƒáƒ•áƒ¨áƒ˜áƒ áƒ“áƒ˜áƒ—
+                            დაგვიკავშირდით
                           </button>
                         </div>
                       </div>
@@ -1288,7 +1288,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   )}
                 </div>
                 <p className="text-xs text-gray-400 mt-4 leading-relaxed">
-                  რეკლამა áƒ’áƒáƒ›áƒáƒ©áƒœáƒ“áƒ”áƒ‘ა áƒ›áƒ—ავარ áƒ’áƒ•áƒ”áƒ áƒ“áƒ–ე მარჯვენა სვეტში. áƒªáƒ•áƒšáƒ˜áƒšáƒ”áƒ‘ის áƒ¨áƒ”áƒ›áƒ“áƒ”áƒ’ áƒ¡áƒáƒ˜áƒ¢áƒ–ე áƒ“áƒáƒ‘áƒ áƒ£áƒœáƒ”áƒ‘ისას ახალი áƒ‘ანერი áƒ“áƒáƒ’áƒ®áƒ•áƒ“áƒ”áƒ‘ა.
+                  რეკლამა გამოჩნდება მთავარ გვერდზე მარჯვენა სვეტში. ცვლილების შემდეგ საიტზე დაბრუნებისას ახალი ბანერი დაგხვდება.
                 </p>
               </div>
 
@@ -1296,7 +1296,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid #f3f4f6' }}>
                   <div className="flex items-center gap-2">
                     <MessageSquare size={16} className="text-news-accent" />
-                    <h3 className="font-bold text-gray-800">რეკლამის áƒ›áƒáƒ—áƒ®áƒáƒ•áƒœáƒ”áƒ‘ი</h3>
+                    <h3 className="font-bold text-gray-800">რეკლამის მოთხოვნები</h3>
                     <span className="badge badge-green ml-1">{adInquiries.length} სულ</span>
                   </div>
                   <button
@@ -1304,7 +1304,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     onClick={() => apiService.fetchAdInquiries().then(setAdInquiries)}
                     className="text-xs font-bold text-news-accent hover:underline"
                   >
-                    áƒ’áƒáƒœáƒáƒ®áƒšáƒ”áƒ‘ა
+                    განახლება
                   </button>
                 </div>
 
@@ -1331,7 +1331,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 ) : (
                   <div className="py-14 text-center text-gray-400">
                     <MessageSquare size={34} className="mx-auto mb-3 text-gray-200" />
-                    <div className="text-sm font-medium">რეკლამის áƒ›áƒáƒ—áƒ®áƒáƒ•áƒœáƒ”áƒ‘ი ჯერ არ არის</div>
+                    <div className="text-sm font-medium">რეკლამის მოთხოვნები ჯერ არ არის</div>
                   </div>
                 )}
               </div>
@@ -1459,13 +1459,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </div>
             </div>
           )}
-          {/* â”€â”€ COMMENTS TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── COMMENTS TAB ──────────────────────────────────── */}
           {activeTab === 'COMMENTS' && (
             <div className="space-y-4 animate-fade-up">
               {comments.length === 0 ? (
                 <div className="bg-white rounded-2xl py-20 text-center" style={{ border: '2px dashed #e5e7eb' }}>
                   <MessageSquare size={44} className="mx-auto text-gray-200 mb-4" />
-                  <p className="text-gray-400 font-medium">áƒ™áƒáƒ›áƒ”áƒœáƒ¢áƒáƒ áƒ”áƒ‘ი არ არის</p>
+                  <p className="text-gray-400 font-medium">კომენტარები არ არის</p>
                 </div>
               ) : (
                 comments.map((comment) => (
@@ -1499,13 +1499,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             </div>
           )}
 
-          {/* â”€â”€ POLLS TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── POLLS TAB ─────────────────────────────────────── */}
           {activeTab === 'POLLS' && (
             isEditingPoll ? (
               <div className="max-w-2xl mx-auto bg-white rounded-2xl overflow-hidden animate-slide-right" style={{ border: '1px solid #e5e7eb' }}>
                 <div className="flex items-center justify-between px-8 py-5" style={{ borderBottom: '1px solid #f3f4f6', background: '#fafafa' }}>
                   <h3 className="text-lg font-bold text-gray-900">
-                    {currentPoll.id ? 'áƒ’áƒáƒ›áƒáƒ™áƒ˜áƒ—ხვის áƒ áƒ”áƒ“áƒáƒ¥áƒ¢áƒ˜áƒ áƒ”áƒ‘ა' : 'ახალი áƒ’áƒáƒ›áƒáƒ™áƒ˜áƒ—ხვა'}
+                    {currentPoll.id ? 'გამოკითხვის რედაქტირება' : 'ახალი გამოკითხვა'}
                   </h3>
                   <button onClick={() => setIsEditingPoll(false)} className="btn-ghost p-2 text-gray-400 hover:text-red-500">
                     <X size={20} />
@@ -1529,28 +1529,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       };
                       savePoll(poll);
                       if (poll.active) setActivePoll(poll.id);
-                      addToast('áƒ’áƒáƒ›áƒáƒ™áƒ˜áƒ—ხვა შენახულია', 'success');
+                      addToast('გამოკითხვა შენახულია', 'success');
                       setIsEditingPoll(false);
                       setPolls(getPolls());
                     } else {
-                      addToast('áƒ¨áƒ”áƒáƒ•áƒ¡áƒ”áƒ— ყველა ველი', 'error');
+                      addToast('შეავსეთ ყველა ველი', 'error');
                     }
                   }}
                   className="p-8 space-y-6"
                 >
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">áƒ™áƒ˜áƒ—ხვა</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">კითხვა</label>
                     <input
                       type="text"
                       required
                       value={currentPoll.question || ''}
                       onChange={(e) => setCurrentPoll({ ...currentPoll, question: e.target.value })}
                       className="form-input"
-                      placeholder="áƒ›áƒáƒ’: áƒ›áƒáƒ’áƒ¬áƒáƒœáƒ— áƒ—უ არა..."
+                      placeholder="მაგ: მოგწონთ თუ არა..."
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-3">áƒžáƒáƒ¡áƒ£áƒ®áƒ”áƒ‘ი</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-3">პასუხები</label>
                     <div className="space-y-2.5">
                       {(currentPoll.options || []).map((option, idx) => (
                         <div key={idx} className="flex gap-2">
@@ -1592,7 +1592,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       }}
                       className="mt-3 text-sm font-bold text-news-accent hover:underline flex items-center gap-1"
                     >
-                      <Plus size={14} /> პასუხის áƒ“áƒáƒ›áƒáƒ¢áƒ”áƒ‘ა
+                      <Plus size={14} /> პასუხის დამატება
                     </button>
                   </div>
                   <div className="flex items-center gap-3 py-4" style={{ borderTop: '1px solid #f3f4f6' }}>
@@ -1607,12 +1607,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       />
                     </div>
                     <label className="font-medium text-gray-700 text-sm cursor-pointer" onClick={() => setCurrentPoll({ ...currentPoll, active: !currentPoll.active })}>
-                      áƒ’áƒáƒáƒ¥áƒ¢áƒ˜áƒ£áƒ áƒ”áƒ‘ა
+                      გააქტიურება
                     </label>
                   </div>
                   <div className="flex gap-3">
                     <button type="button" onClick={() => setIsEditingPoll(false)} className="btn-secondary flex-1">
-                      áƒ’áƒáƒ£áƒ¥áƒ›áƒ”áƒ‘ა
+                      გაუქმება
                     </button>
                     <button type="submit" className="btn-primary flex-1 justify-center">
                       <Save size={16} /> შენახვა
@@ -1636,7 +1636,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm mb-3">
                     <Plus size={22} className="text-gray-400" />
                   </div>
-                  <h3 className="font-bold text-gray-600 text-sm">ახალი áƒ’áƒáƒ›áƒáƒ™áƒ˜áƒ—ხვა</h3>
+                  <h3 className="font-bold text-gray-600 text-sm">ახალი გამოკითხვა</h3>
                 </div>
 
                 {polls.map((poll) => (
@@ -1645,7 +1645,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       <button onClick={() => { setCurrentPoll(poll); setIsEditingPoll(true); }} className="p-1.5 bg-gray-100 rounded-lg hover:bg-blue-50 text-blue-500 transition-colors">
                         <Edit2 size={14} />
                       </button>
-                      <button onClick={() => { if (window.confirm('áƒ¬áƒáƒ•áƒ¨áƒáƒšáƒáƒ—?')) { deletePoll(poll.id); setPolls(getPolls()); } }} className="p-1.5 bg-gray-100 rounded-lg hover:bg-red-50 text-red-500 transition-colors">
+                      <button onClick={() => { if (window.confirm('წავშალოთ?')) { deletePoll(poll.id); setPolls(getPolls()); } }} className="p-1.5 bg-gray-100 rounded-lg hover:bg-red-50 text-red-500 transition-colors">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -1654,10 +1654,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         <span className="badge badge-green flex items-center gap-1"><CheckCircle size={11} /> აქტიური</span>
                       ) : (
                         <button
-                          onClick={() => { setActivePoll(poll.id); setPolls(getPolls()); addToast('áƒ’ააქტიურდა', 'success'); }}
+                          onClick={() => { setActivePoll(poll.id); setPolls(getPolls()); addToast('გააქტიურდა', 'success'); }}
                           className="badge bg-gray-100 text-gray-500 hover:bg-gray-200 cursor-pointer transition-colors"
                         >
-                          áƒ’áƒáƒáƒ¥áƒ¢áƒ˜áƒ£áƒ áƒ”áƒ‘ა
+                          გააქტიურება
                         </button>
                       )}
                       <span className="text-xs text-gray-400">{poll.totalVotes} ხმა</span>
