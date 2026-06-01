@@ -156,9 +156,29 @@ async function handleLogin(body, response) {
     return json(response, 401, { success: false, message: "მომხმარებელი ან პაროლი არასწორია" });
   }
 
+  let isValid = false;
   const hasValidHash = Boolean(admin.password_hash && verifyPassword(body.password || "", admin.password_hash));
   const hasValidLegacyPassword = Boolean(admin.password && admin.password === body.password);
-  if (!hasValidHash && !hasValidLegacyPassword) {
+
+  if (hasValidHash || hasValidLegacyPassword) {
+    isValid = true;
+  } else if (admin.email) {
+    // Fallback: Verify via Supabase Auth API
+    const { supabaseUrl, serviceKey } = getConfig();
+    const authResponse = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: {
+        apikey: serviceKey,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ email: admin.email, password: body.password }),
+    });
+    if (authResponse.ok) {
+      isValid = true;
+    }
+  }
+
+  if (!isValid) {
     return json(response, 401, { success: false, message: "მომხმარებელი ან პაროლი არასწორია" });
   }
 
