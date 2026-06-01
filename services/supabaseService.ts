@@ -25,7 +25,7 @@ class SupabaseService {
       const { data, error } = await supabase
         .from("articles")
         .select(
-          "id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at"
+          "id, title, summary, content, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at"
         )
         .order("created_at", { ascending: false })
         .range(0, 99);
