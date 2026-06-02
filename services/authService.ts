@@ -176,19 +176,7 @@ export const loginAdmin = async (email: string, password: string): Promise<Admin
       .eq('id', legacyAdmin.id);
   }
 
-  const safeLegacyAdmin = cacheAdmin(
-    legacyAdmin.id,
-    legacyAdmin.username || login,
-    legacyAdmin.email || '',
-  );
-
-  return {
-    success: true,
-    message: 'წარმატებით შეხვედით სისტემაში',
-    admin: safeLegacyAdmin as any,
-  };
-
-  // 1. Authenticate user via Supabase Auth
+  // 1. Authenticate user via Supabase Auth (establishes real session for RLS)
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
     email,
     password,
