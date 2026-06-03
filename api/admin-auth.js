@@ -289,6 +289,34 @@ async function handleDeleteAdmin(body, response) {
   return json(response, 200, { success: true });
 }
 
+// Resolves a login (username or email) → { email, role } using the service role key.
+// No auth token required — only returns non-sensitive fields (email + role).
+// Rate-limiting / brute-force protection is handled upstream by Supabase Auth.
+async function handleResolveLogin(body, response) {
+  const login = String(body.login || "").trim();
+  if (!login) return json(response, 400, { success: false, message: "login required" });
+
+  const fields = "email,role";
+  const primaryField = login.includes("@") ? "email" : "username";
+  const secondaryField = primaryField === "email" ? "username" : "email";
+
+  let row = null;
+  const primary = await supabaseRequest(`users?${primaryField}=eq.${encodeURIComponent(login)}&select=${fields}`);
+  if (primary?.[0]) row = primary[0];
+
+  if (!row) {
+    const secondary = await supabaseRequest(`users?${secondaryField}=eq.${encodeURIComponent(login)}&select=${fields}`);
+    if (secondary?.[0]) row = secondary[0];
+  }
+
+  if (!row || !ADMIN_ROLES.has(row.role)) {
+    // Return generic error — do not reveal whether user exists
+    return json(response, 200, { success: false });
+  }
+
+  return json(response, 200, { success: true, email: row.email, role: row.role });
+}
+
 export default async function handler(request, response) {
   if (request.method !== "POST") {
     return json(response, 405, { success: false, message: "Method not allowed" });
@@ -298,6 +326,7 @@ export default async function handler(request, response) {
     const body = await readBody(request);
     if (body.action === "login") return handleLogin(body, response);
     if (body.action === "session") return handleSession(body, response);
+    if (body.action === "resolveLogin") return handleResolveLogin(body, response);
     if (body.action === "listAdmins") return handleListAdmins(body, response);
     if (body.action === "createAdmin") return handleCreateAdmin(body, response);
     if (body.action === "updateRole") return handleUpdateRole(body, response);

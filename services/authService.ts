@@ -151,34 +151,30 @@ export const registerAdmin = (username: string, email: string, password: string)
   };
 };
 
-export const loginAdmin = async (email: string, password: string): Promise<AdminAuthResponse> => {
+export const loginAdmin = async (emailOrLogin: string, password: string): Promise<AdminAuthResponse> => {
   const supabase = getSupabaseClient();
   if (!supabase) return { success: false, message: 'Supabase client not configured' };
 
-  const login = email.trim();
-  const legacyAdmin = await findAdminByLogin(login);
-
-  if (!legacyAdmin || legacyAdmin.role !== 'admin') {
-    return { success: false, message: 'ელ-ფოსტა ან პაროლი არასწორია (Invalid email or password)' };
+  // Resolve username → email via backend (service role key bypasses RLS)
+  let resolvedEmail = emailOrLogin.trim();
+  if (!resolvedEmail.includes('@')) {
+    try {
+      const resolved = await callAdminApi<{ success: boolean; email?: string; role?: string }>({
+        action: 'resolveLogin',
+        login: resolvedEmail,
+      });
+      if (!resolved.success || !resolved.email) {
+        return { success: false, message: 'ელ-ფოსტა ან პაროლი არასწორია (Invalid email or password)' };
+      }
+      resolvedEmail = resolved.email;
+    } catch {
+      return { success: false, message: 'ელ-ფოსტა ან პაროლი არასწორია (Invalid email or password)' };
+    }
   }
 
-  const hasValidHash = Boolean(legacyAdmin.password_hash && verifyPassword(password, legacyAdmin.password_hash));
-  const hasValidLegacyPassword = Boolean(legacyAdmin.password && legacyAdmin.password === password);
-
-  if (!hasValidHash && !hasValidLegacyPassword) {
-    return { success: false, message: 'ელ-ფოსტა ან პაროლი არასწორია (Invalid email or password)' };
-  }
-
-  if (hasValidLegacyPassword && !legacyAdmin.password_hash) {
-    await supabase
-      .from('users')
-      .update({ password_hash: hashPassword(password), password: null })
-      .eq('id', legacyAdmin.id);
-  }
-
-  // 1. Authenticate user via Supabase Auth (establishes real session for RLS)
+  // 1. Authenticate via Supabase Auth (establishes real session for RLS)
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email,
+    email: resolvedEmail,
     password,
   });
 
@@ -186,22 +182,23 @@ export const loginAdmin = async (email: string, password: string): Promise<Admin
     return { success: false, message: 'ელ-ფოსტა ან პაროლი არასწორია (Invalid email or password)' };
   }
 
-  // 2. Validate admin role in public.users table
+  // 2. Validate admin role via authenticated session (auth.uid() now valid → users_self_read policy allows this)
   const { data: userData, error: userError } = await supabase
     .from('users')
     .select('role, username, email')
     .eq('id', authData.user.id)
     .single();
 
-  if (userError || !userData || userData.role !== 'admin') {
+  if (userError || !userData || !['admin', 'owner'].includes(userData.role)) {
     await supabase.auth.signOut();
     return { success: false, message: 'თქვენ არ გაქვთ ადმინისტრატორის უფლებები (Unauthorized role)' };
   }
 
   const safeAdmin = cacheAdmin(
     authData.user.id,
-    userData.username || email,
-    userData.email || email,
+    userData.username || resolvedEmail,
+    userData.email || resolvedEmail,
+    userData.role as 'owner' | 'admin',
   );
 
   return {
@@ -254,6 +251,9 @@ export const loginAdminSecure = async (login: string, password: string, secretCo
  * Unified login entry point used by the login form.
  * - secretCode provided → owner path (loginAdminSecure): custom token + Supabase Auth session.
  * - secretCode omitted  → admin path (loginAdmin):        Supabase Auth session only.
+ *
+ * Username → email resolution always goes through the backend API (service role key)
+ * so the anon-key client never needs to read public.users before authentication.
  */
 export const loginAdminUnified = async (
   login: string,
@@ -263,25 +263,9 @@ export const loginAdminUnified = async (
   if (secretCode.trim()) {
     return loginAdminSecure(login, password, secretCode);
   }
-  // For regular admins the login field may be a username — resolve the email first.
-  const supabase = getSupabaseClient();
-  if (!supabase) return { success: false, message: 'Supabase client not configured' };
-
-  const record = await (async () => {
-    const trimmed = login.trim();
-    const { data } = await supabase
-      .from('users')
-      .select('email, role')
-      .or(`email.eq.${trimmed},username.eq.${trimmed}`)
-      .maybeSingle();
-    return data as { email: string; role: string } | null;
-  })();
-
-  if (!record || !['admin', 'owner'].includes(record.role)) {
-    return { success: false, message: 'მომხმარებელი ან პაროლი არასწორია' };
-  }
-
-  return loginAdmin(record.email, password);
+  // No secret code — regular admin path.
+  // loginAdmin handles username→email resolution via backend resolveLogin.
+  return loginAdmin(login, password);
 };
 
 export const listAdminUsers = async (): Promise<AdminUserRecord[]> => {
