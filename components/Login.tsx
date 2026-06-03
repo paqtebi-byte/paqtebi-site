@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { loginAdminSecure } from '../services/authService';
+import { loginAdminUnified } from '../services/authService';
 import { useToast } from '../context/ToastContext';
 import { Lock, Eye, EyeOff, User, UserPlus, ArrowLeft, Shield } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
@@ -32,13 +32,13 @@ export const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!formData.username || !formData.password || !formData.secretCode) {
-      setError('გთხოვთ შეავსოთ ყველა ველი');
+    if (!formData.username || !formData.password) {
+      setError('გთხოვთ შეავსოთ მომხმარებლის სახელი და პაროლი');
       return;
     }
     setIsSubmitting(true);
     try {
-      const response = await loginAdminSecure(formData.username, formData.password, formData.secretCode);
+      const response = await loginAdminUnified(formData.username, formData.password, formData.secretCode);
       if (response.success) {
         addToast(response.message, 'success');
         navigate('/admin');
@@ -185,10 +185,10 @@ export const Login: React.FC = () => {
                 </div>
               </div>
 
-              {/* Secret Code */}
+              {/* Secret Code — required for Owners, optional for Admins */}
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                  საიდუმლო კოდი
+                  საიდუმლო კოდი <span className="normal-case font-normal text-gray-600">(მხოლოდ Owner-ისთვის)</span>
                 </label>
                 <div className="relative">
                   <Shield
@@ -207,7 +207,7 @@ export const Login: React.FC = () => {
                       background: focused === 'secretCode' ? 'rgba(220,38,38,0.08)' : 'rgba(255,255,255,0.06)',
                       border: focused === 'secretCode' ? '1.5px solid rgba(220,38,38,0.5)' : '1.5px solid rgba(255,255,255,0.08)',
                     }}
-                    placeholder="შეიყვანეთ საიდუმლო კოდი"
+                    placeholder="Admin-ისთვის სურვილისამებრ"
                   />
                   <button
                     type="button"

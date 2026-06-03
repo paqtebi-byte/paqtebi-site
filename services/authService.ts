@@ -228,6 +228,15 @@ export const loginAdminSecure = async (login: string, password: string, secretCo
     localStorage.setItem(STORAGE_KEY_ADMIN_AUTH, data.token);
     const safeAdmin = cacheAdmin(data.admin.id, data.admin.username, data.admin.email, data.admin.role);
 
+    // Also establish a native Supabase Auth session so auth.uid() is populated for RLS.
+    // The custom token (above) is still kept for owner-only API actions (listAdmins, etc.).
+    // We resolve the email from public.users since the login field may be a username.
+    const supabase = getSupabaseClient();
+    if (supabase && data.admin.email) {
+      await supabase.auth.signInWithPassword({ email: data.admin.email, password });
+      // Failure is intentionally ignored — the custom-token session is still valid.
+    }
+
     return {
       success: true,
       message: data.message,
@@ -239,6 +248,40 @@ export const loginAdminSecure = async (login: string, password: string, secretCo
       message: error instanceof Error ? error.message : 'შესვლა ვერ მოხერხდა',
     };
   }
+};
+
+/**
+ * Unified login entry point used by the login form.
+ * - secretCode provided → owner path (loginAdminSecure): custom token + Supabase Auth session.
+ * - secretCode omitted  → admin path (loginAdmin):        Supabase Auth session only.
+ */
+export const loginAdminUnified = async (
+  login: string,
+  password: string,
+  secretCode: string,
+): Promise<AdminAuthResponse> => {
+  if (secretCode.trim()) {
+    return loginAdminSecure(login, password, secretCode);
+  }
+  // For regular admins the login field may be a username — resolve the email first.
+  const supabase = getSupabaseClient();
+  if (!supabase) return { success: false, message: 'Supabase client not configured' };
+
+  const record = await (async () => {
+    const trimmed = login.trim();
+    const { data } = await supabase
+      .from('users')
+      .select('email, role')
+      .or(`email.eq.${trimmed},username.eq.${trimmed}`)
+      .maybeSingle();
+    return data as { email: string; role: string } | null;
+  })();
+
+  if (!record || !['admin', 'owner'].includes(record.role)) {
+    return { success: false, message: 'მომხმარებელი ან პაროლი არასწორია' };
+  }
+
+  return loginAdmin(record.email, password);
 };
 
 export const listAdminUsers = async (): Promise<AdminUserRecord[]> => {
