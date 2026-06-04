@@ -5,7 +5,6 @@ import { Article } from '../types';
 import { LazyImage } from './LazyImage';
 import { ArticleExcerpt } from './ArticleExcerpt';
 import { PollWidget } from './PollWidget';
-import { AiNewsWidget } from './AiNewsWidget';
 import { MostReadWidget } from './MostReadWidget';
 import { ZodiacWidget } from './ZodiacWidget';
 import { getAdPlacement } from '../services/storageService';
@@ -359,9 +358,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({ articles = [], cust
           </ul>
         </div>
       )}
-
-      {/* AI News Widget */}
-      <AiNewsWidget onArticleClick={onArticleClick} />
 
       {/* Video Sections */}
       <div className="space-y-6">
