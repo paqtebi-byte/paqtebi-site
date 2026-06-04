@@ -22,7 +22,12 @@ async function readBody(request) {
   const chunks = [];
   for await (const chunk of request) chunks.push(chunk);
   const raw = Buffer.concat(chunks).toString("utf8");
-  return raw ? JSON.parse(raw) : {};
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
 }
 
 function hashPassword(password) {
@@ -333,6 +338,7 @@ export default async function handler(request, response) {
     if (body.action === "deleteAdmin") return handleDeleteAdmin(body, response);
     return json(response, 400, { success: false, message: "Unknown action" });
   } catch (error) {
-    return json(response, 500, { success: false, message: error.message || "Server error" });
+    const message = error instanceof Error ? error.message : "Internal server error";
+    return json(response, 500, { success: false, message });
   }
 }
