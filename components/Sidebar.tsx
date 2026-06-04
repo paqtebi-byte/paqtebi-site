@@ -20,6 +20,19 @@ interface SidebarProps {
   onArticleClick?: (article: Article) => void;
 }
 
+const adPlacementCache: { data: ReturnType<typeof getAdPlacement> | null; ts: number } = { data: null, ts: 0 };
+const AD_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+const getCachedAdPlacement = async () => {
+  if (adPlacementCache.data && Date.now() - adPlacementCache.ts < AD_CACHE_TTL) {
+    return adPlacementCache.data;
+  }
+  const fresh = await apiService.fetchAdPlacement();
+  adPlacementCache.data = fresh;
+  adPlacementCache.ts = Date.now();
+  return fresh;
+};
+
 export const Sidebar: React.FC<SidebarProps> = React.memo(({ articles = [], customArticles = [], videos = [], onArticleClick }) => {
   const [adPlacement, setAdPlacement] = useState(() => getAdPlacement());
   const [isAdFormOpen, setIsAdFormOpen] = useState(false);
@@ -29,20 +42,21 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({ articles = [], cust
 
   useEffect(() => {
     const refreshAd = () => {
-      apiService.fetchAdPlacement().then(setAdPlacement);
+      adPlacementCache.data = null; // invalidate cache on storage event
+      getCachedAdPlacement().then(setAdPlacement);
     };
 
-    refreshAd();
+    getCachedAdPlacement().then(setAdPlacement);
 
-    const handleStorageChange = () => refreshAd();
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('paqtebi-ad-placement-updated', handleStorageChange);
+    window.addEventListener('storage', refreshAd);
+    window.addEventListener('paqtebi-ad-placement-updated', refreshAd);
 
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('paqtebi-ad-placement-updated', handleStorageChange);
+      window.removeEventListener('storage', refreshAd);
+      window.removeEventListener('paqtebi-ad-placement-updated', refreshAd);
     };
   }, []);
+
 
   const popularPublications = [
     { id: 1, title: "როგორ შეცვალა ხელოვნურმა ინტელექტმა მედიცინა", views: "12.5K" },
