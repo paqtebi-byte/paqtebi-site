@@ -885,7 +885,8 @@ const ArticleDetailPage: React.FC = () => {
   const { currentUser, isAdminAuthenticated, currentAdmin, setCurrentUser } = useAuth();
   const { articles, loading, loadAllNews } = useArticles();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [directArticle, setDirectArticle] = useState<Article | null | undefined>(undefined);
+  // undefined = not yet fetched, null = fetch done (not found), Article = fetched successfully
+  const [fullArticle, setFullArticle] = useState<Article | null | undefined>(undefined);
   const effectiveUser = getEffectiveSiteUser(currentUser, isAdminAuthenticated, currentAdmin);
 
   const stateArticle = location.state?.article as Article | undefined;
@@ -894,33 +895,30 @@ const ArticleDetailPage: React.FC = () => {
     loadAllNews();
   }, [loadAllNews]);
 
-  // If we arrived without navigation state (direct URL / refresh), fetch the full article
-  // including its content body. The list cache intentionally omits 'content' to save egress.
+  // Always fetch the full article by ID so we have the `content` body.
+  // The list cache and navigation state both intentionally omit `content` to save egress.
   useEffect(() => {
-    if (stateArticle) {
-      setDirectArticle(null); // don't need the separate fetch
-      return;
-    }
     if (!id) return;
-
     let cancelled = false;
+    setFullArticle(undefined); // reset on id change to show loading state
     import("./services/apiService").then(({ default: apiService }) => {
       apiService.fetchArticleById(id).then((a) => {
-        if (!cancelled) setDirectArticle(a);
+        if (!cancelled) setFullArticle(a);
       });
     });
     return () => { cancelled = true; };
-  }, [id, stateArticle]);
+  }, [id]);
 
-  // Resolve the article to display:
-  // 1. Navigation state (has content, already loaded) — immediate
-  // 2. directArticle fetched by ID (has content) — after short async
-  // 3. List cache fallback (no content — shown while directArticle loads)
-  const article = stateArticle ?? directArticle ?? articles.find((a) => a.id === id);
+  // While fetchArticleById is in-flight, show the partial article from state/cache
+  // so the page title and thumbnail render immediately (no blank flash).
+  const partialArticle = stateArticle ?? articles.find((a) => a.id === id);
 
-  const isFetching = !stateArticle && directArticle === undefined;
+  // Use the full article once loaded; fall back to partial while loading.
+  const article = fullArticle ?? partialArticle;
 
-  if ((isFetching || loading) && !article) return <LoadingSkeleton />;
+  const isFetching = fullArticle === undefined;
+
+  if (isFetching && !article) return <LoadingSkeleton />;
   if (!article) return <NotFound />;
 
   return (
@@ -931,7 +929,7 @@ const ArticleDetailPage: React.FC = () => {
         onBack={() => navigate("/")}
         currentUser={effectiveUser}
         onLoginRequest={() => setIsAuthModalOpen(true)}
-        onNavigateToArticle={(article) => navigate(getContentRoute(article), { state: { article } })}
+        onNavigateToArticle={(a) => navigate(getContentRoute(a), { state: { article: a } })}
         isAdmin={isAdminAuthenticated}
       />
       {isAuthModalOpen && (
