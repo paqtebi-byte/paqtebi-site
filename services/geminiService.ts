@@ -54,6 +54,8 @@ const getFallbackAiNews = (): Article[] => [
 ];
 
 export const fetchAiFocusedNews = async (): Promise<Article[]> => {
+  return [];
+
   if (!apiKey) {
     console.warn("API Key not found, returning editorial fallback AI news.");
     return getFallbackAiNews();
