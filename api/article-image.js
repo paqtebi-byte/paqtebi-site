@@ -5,7 +5,7 @@ async function fetchArticle(id) {
   if (!supabaseUrl || !supabaseAnonKey || !id) return null;
 
   const response = await fetch(
-    `${supabaseUrl}/rest/v1/articles?id=eq.${encodeURIComponent(id)}&select=id,imageUrl,image_url`,
+    `${supabaseUrl}/rest/v1/articles?id=eq.${encodeURIComponent(id)}&select=imageUrl,image_url`,
     {
       headers: {
         apikey: supabaseAnonKey,

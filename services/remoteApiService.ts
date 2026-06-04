@@ -1,6 +1,7 @@
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { AdInquiry, AdPlacement, Article, Comment, BreakingNewsItem, User } from "../types";
 import { DATABASE_CONFIG } from "../config/database";
+import getSupabaseClient from "./supabaseClient";
 
 /**
  * Service class for handling all API/database operations with Supabase
@@ -16,10 +17,7 @@ class RemoteApiService {
 
   constructor() {
     if (!DATABASE_CONFIG.USE_LOCAL_STORAGE) {
-      this.supabase = createClient(
-        DATABASE_CONFIG.SUPABASE_URL,
-        DATABASE_CONFIG.SUPABASE_ANON_KEY,
-      );
+      this.supabase = getSupabaseClient();
     }
   }
 

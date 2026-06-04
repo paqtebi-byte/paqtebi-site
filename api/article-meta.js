@@ -32,7 +32,7 @@ async function fetchArticle(id) {
   if (!supabaseUrl || !supabaseAnonKey || !id) return null;
 
   const response = await fetch(
-    `${supabaseUrl}/rest/v1/articles?id=eq.${encodeURIComponent(id)}&select=*`,
+    `${supabaseUrl}/rest/v1/articles?id=eq.${encodeURIComponent(id)}&select=id,title,summary,imageUrl,image_url`,
     {
       headers: {
         apikey: supabaseAnonKey,
@@ -59,7 +59,7 @@ export default async function handler(request, response) {
   }
 
   const title = article.title || "Paqtebi";
-  const description = stripHtml(article.summary || article.content || title).slice(0, 240);
+  const description = stripHtml(article.summary || title).slice(0, 240);
   const image = getPublicImageUrl(article, articleUrl);
 
   response.setHeader("content-type", "text/html; charset=utf-8");
