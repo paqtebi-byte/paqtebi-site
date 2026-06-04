@@ -9,7 +9,7 @@ import { AdInquiry, AdPlacement, Article, Comment, BreakingNewsItem, User } from
 class ApiService {
   private articleCache = new Map<string, { data: Article[]; timestamp: number }>();
   private articleRequests = new Map<string, Promise<Article[]>>();
-  private readonly ARTICLE_CACHE_TTL = 60_000;
+  private readonly ARTICLE_CACHE_TTL = 300_000; // 5 minutes
 
   private clearArticleCache() {
     this.articleCache.clear();
@@ -48,6 +48,14 @@ class ApiService {
 
     this.articleRequests.set(key, request);
     return request;
+  }
+
+  /**
+   * Fetch a single article by ID including full content body.
+   * Used when navigating directly to /article/:id without cached navigation state.
+   */
+  async fetchArticleById(id: string): Promise<Article | null> {
+    return RemoteApiService.fetchArticleById(id);
   }
 
   /**

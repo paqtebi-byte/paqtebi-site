@@ -148,15 +148,17 @@ class RemoteApiService {
     }
 
     // Use Supabase
+    // NOTE: 'content' (full HTML body) is intentionally excluded here to minimise egress.
+    // It is fetched on-demand only when a single article is opened (see fetchArticleById).
     try {
       let query = this.supabase!
         .from(DATABASE_CONFIG.TABLES.ARTICLES)
         .select(
-          "id, title, summary, content, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived"
+          "id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived"
         )
         .eq("is_archived", false)
         .order("created_at", { ascending: false })
-        .range(0, 99);
+        .range(0, 49);
 
       if (contentType !== "all") {
         query = query.eq("content_type", contentType);
@@ -172,6 +174,34 @@ class RemoteApiService {
     } catch (error) {
       console.error("Error in fetchArticles:", error);
       return [];
+    }
+  }
+
+  /**
+   * Fetch a single article by ID including its full content body.
+   * Called only when opening an article detail page by direct URL (no navigation state).
+   */
+  async fetchArticleById(id: string): Promise<Article | null> {
+    if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
+      const articles = await this.fetchArticles();
+      return articles.find((a) => a.id === id) ?? null;
+    }
+
+    try {
+      const { data, error } = await this.supabase!
+        .from(DATABASE_CONFIG.TABLES.ARTICLES)
+        .select(
+          "id, title, summary, content, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived"
+        )
+        .eq("id", id)
+        .eq("is_archived", false)
+        .maybeSingle();
+
+      if (error) throw new Error(`Error fetching article: ${error.message}`);
+      return data ? this.mapArticleFromDb(data) : null;
+    } catch (error) {
+      console.error("Error in fetchArticleById:", error);
+      return null;
     }
   }
 
@@ -662,7 +692,8 @@ class RemoteApiService {
     try {
       const { data, error } = await this.supabase!
         .from(DATABASE_CONFIG.TABLES.USERS)
-        .select("username, email, created_at");
+        .select("username, email, created_at")
+        .range(0, 99);
 
       if (error) {
         throw new Error(`Error fetching users: ${error.message}`);

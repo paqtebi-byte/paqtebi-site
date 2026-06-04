@@ -885,16 +885,42 @@ const ArticleDetailPage: React.FC = () => {
   const { currentUser, isAdminAuthenticated, currentAdmin, setCurrentUser } = useAuth();
   const { articles, loading, loadAllNews } = useArticles();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [directArticle, setDirectArticle] = useState<Article | null | undefined>(undefined);
   const effectiveUser = getEffectiveSiteUser(currentUser, isAdminAuthenticated, currentAdmin);
+
+  const stateArticle = location.state?.article as Article | undefined;
 
   useEffect(() => {
     loadAllNews();
   }, [loadAllNews]);
 
-  const stateArticle = location.state?.article as Article | undefined;
-  const article = stateArticle || articles.find((a) => a.id === id);
+  // If we arrived without navigation state (direct URL / refresh), fetch the full article
+  // including its content body. The list cache intentionally omits 'content' to save egress.
+  useEffect(() => {
+    if (stateArticle) {
+      setDirectArticle(null); // don't need the separate fetch
+      return;
+    }
+    if (!id) return;
 
-  if (!article && loading) return <LoadingSkeleton />;
+    let cancelled = false;
+    import("./services/apiService").then(({ default: apiService }) => {
+      apiService.fetchArticleById(id).then((a) => {
+        if (!cancelled) setDirectArticle(a);
+      });
+    });
+    return () => { cancelled = true; };
+  }, [id, stateArticle]);
+
+  // Resolve the article to display:
+  // 1. Navigation state (has content, already loaded) — immediate
+  // 2. directArticle fetched by ID (has content) — after short async
+  // 3. List cache fallback (no content — shown while directArticle loads)
+  const article = stateArticle ?? directArticle ?? articles.find((a) => a.id === id);
+
+  const isFetching = !stateArticle && directArticle === undefined;
+
+  if ((isFetching || loading) && !article) return <LoadingSkeleton />;
   if (!article) return <NotFound />;
 
   return (
@@ -918,6 +944,7 @@ const ArticleDetailPage: React.FC = () => {
     </Suspense>
   );
 };
+
 
 const LiveRoutePage: React.FC = () => (
   <Suspense fallback={<LoadingSkeleton />}>

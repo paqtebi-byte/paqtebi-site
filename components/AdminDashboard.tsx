@@ -93,13 +93,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   useEffect(() => {
     refreshLocalOnly();
-    apiService.fetchAdPlacement().then(setCurrentAd);
-    apiService.fetchAdInquiries().then(setAdInquiries);
   }, []);
 
   useEffect(() => {
-    const refreshAdInquiries = () => {
+    if (activeTab === 'ADS') {
+      apiService.fetchAdPlacement().then(setCurrentAd);
       apiService.fetchAdInquiries().then(setAdInquiries);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    const refreshAdInquiries = () => {
+      if (activeTab === 'ADS') {
+        apiService.fetchAdInquiries().then(setAdInquiries);
+      }
     };
 
     window.addEventListener('storage', refreshAdInquiries);
@@ -109,7 +116,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       window.removeEventListener('storage', refreshAdInquiries);
       window.removeEventListener('paqtebi-ad-inquiry-created', refreshAdInquiries);
     };
-  }, []);
+  }, [activeTab]);
+
 
   const getContentTypeForTab = (tab: Tab): Article['contentType'] => {
     if (tab === 'VIDEO_REPORTS' || tab === 'PODCASTS' || tab === 'INTERESTING') return 'video';
