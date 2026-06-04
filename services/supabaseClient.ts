@@ -1,7 +1,11 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { DATABASE_CONFIG } from "../config/database";
 
-let supabaseClient = null;
+type SupabaseGlobal = typeof globalThis & {
+  __paqtebiSupabaseClient?: SupabaseClient | null;
+};
+
+let supabaseClient: SupabaseClient | null = null;
 
 if (!DATABASE_CONFIG.USE_LOCAL_STORAGE) {
   if (!DATABASE_CONFIG.SUPABASE_URL || !DATABASE_CONFIG.SUPABASE_ANON_KEY) {
@@ -12,10 +16,14 @@ if (!DATABASE_CONFIG.USE_LOCAL_STORAGE) {
         "VITE_SUPABASE_ANON_KEY=your-anon-key",
     );
   } else {
-    supabaseClient = createClient(
-      DATABASE_CONFIG.SUPABASE_URL,
-      DATABASE_CONFIG.SUPABASE_ANON_KEY,
-    );
+    const globalScope = globalThis as SupabaseGlobal;
+    if (!globalScope.__paqtebiSupabaseClient) {
+      globalScope.__paqtebiSupabaseClient = createClient(
+        DATABASE_CONFIG.SUPABASE_URL,
+        DATABASE_CONFIG.SUPABASE_ANON_KEY,
+      );
+    }
+    supabaseClient = globalScope.__paqtebiSupabaseClient;
   }
 }
 
@@ -28,6 +36,12 @@ export const getSupabaseClient = () => {
     console.warn("Supabase not configured, using localStorage fallback");
     return null;
   }
+
+  if (!supabaseClient) {
+    const globalScope = globalThis as SupabaseGlobal;
+    supabaseClient = globalScope.__paqtebiSupabaseClient ?? null;
+  }
+
   return supabaseClient;
 };
 

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ka">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Paqtebi — ქართული სიახლეები</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon.png" />
+    <link rel="shortcut icon" href="/favicon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#dc2626" />
+    <meta name="description" content="ობიექტური და ოპერატიული ინფორმაცია მსოფლიოს ნებისმიერი წერტილიდან. Paqtebi — ყველა სიახლე ერთ ადგილას." />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Georgian:wght@300;400;500;600;700;800&family=Noto+Serif+Georgian:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['"Noto Sans Georgian"', '"Inter"', "sans-serif"],
+              serif: ['"Noto Serif Georgian"', "Georgia", "serif"],
+              inter: ['"Inter"', "sans-serif"],
+            },
+            colors: {
+              news: {
+                black: "#0d0d0d",
+                gray: "#6b7280",
+                light: "#f8fafc",
+                accent: "#dc2626",
+                'accent-dark': "#991b1b",
+                'accent-light': "#fef2f2",
+                darkblue: "#0a0f1e",
+                'surface': "#ffffff",
+                'border': "#e5e7eb",
+              },
+              brand: {
+                50: "#fef2f2",
+                100: "#fee2e2",
+                200: "#fecaca",
+                500: "#ef4444",
+                600: "#dc2626",
+                700: "#b91c1c",
+                800: "#991b1b",
+                900: "#7f1d1d",
+              }
+            },
+            animation: {
+              'marquee': 'marquee 40s linear infinite',
+              'fade-up': 'fadeUp 0.5s ease-out forwards',
+              'slide-in': 'slideIn 0.3s ease-out forwards',
+              'pulse-slow': 'pulse 3s ease-in-out infinite',
+              'shimmer': 'shimmer 2s linear infinite',
+            },
+            keyframes: {
+              marquee: {
+                '0%': { transform: 'translateX(100%)' },
+                '100%': { transform: 'translateX(-100%)' },
+              },
+              fadeUp: {
+                '0%': { opacity: '0', transform: 'translateY(16px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              slideIn: {
+                '0%': { opacity: '0', transform: 'translateX(-12px)' },
+                '100%': { opacity: '1', transform: 'translateX(0)' },
+              },
+              shimmer: {
+                '0%': { backgroundPosition: '-200% 0' },
+                '100%': { backgroundPosition: '200% 0' },
+              },
+            },
+            boxShadow: {
+              'card': '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)',
+              'card-hover': '0 8px 25px rgba(0,0,0,0.12), 0 3px 8px rgba(0,0,0,0.06)',
+              'navbar': '0 1px 0 rgba(0,0,0,0.08)',
+              'admin': '0 20px 60px rgba(0,0,0,0.3)',
+            },
+            backdropBlur: {
+              xs: '2px',
+            }
+          },
+        },
+      };
+    </script>
+    <script type="module" crossorigin src="/assets/index-CQXXR9_1.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BGBtOBd7.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

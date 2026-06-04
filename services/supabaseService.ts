@@ -1,17 +1,7 @@
-import { createClient } from "@supabase/supabase-js";
 import { Article, Comment, BreakingNewsItem } from "../types";
+import getSupabaseClient from "./supabaseClient";
 
-// Environment variables should be configured in your .env.local file
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.error(
-    "Missing Supabase environment variables. Please check your .env.local file.",
-  );
-}
-
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+export const supabase = getSupabaseClient();
 
 /**
  * Service class for handling all Supabase database operations
