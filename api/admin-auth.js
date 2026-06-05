@@ -91,23 +91,42 @@ async function supabaseRequest(path, options = {}) {
     throw new Error("Supabase server credentials are not configured");
   }
 
-  const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
-    ...options,
-    headers: {
-      apikey: serviceKey,
-      authorization: `Bearer ${serviceKey}`,
-      "content-type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+  let response;
+  try {
+    response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        apikey: serviceKey,
+        authorization: `Bearer ${serviceKey}`,
+        "content-type": "application/json",
+        ...(options.headers || {}),
+      },
+    });
+  } catch (error) {
+    const isTimeout = error instanceof Error && error.name === "AbortError";
+    throw new Error(isTimeout ? "Supabase request timed out" : "Supabase request failed");
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  const responseText = await response.text();
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || `Supabase request failed: ${response.status}`);
+    throw new Error(responseText || `Supabase request failed: ${response.status}`);
   }
 
   if (response.status === 204) return null;
-  return response.json();
+  if (!responseText) return null;
+
+  try {
+    return JSON.parse(responseText);
+  } catch {
+    throw new Error("Supabase returned invalid JSON");
+  }
 }
 
 async function findAdminByLogin(login) {
@@ -301,25 +320,29 @@ async function handleResolveLogin(body, response) {
   const login = String(body.login || "").trim();
   if (!login) return json(response, 400, { success: false, message: "login required" });
 
-  const fields = "email,role";
-  const primaryField = login.includes("@") ? "email" : "username";
-  const secondaryField = primaryField === "email" ? "username" : "email";
+  try {
+    const fields = "email,role";
+    const primaryField = login.includes("@") ? "email" : "username";
+    const secondaryField = primaryField === "email" ? "username" : "email";
 
-  let row = null;
-  const primary = await supabaseRequest(`users?${primaryField}=eq.${encodeURIComponent(login)}&select=${fields}`);
-  if (primary?.[0]) row = primary[0];
+    let row = null;
+    const primary = await supabaseRequest(`users?${primaryField}=eq.${encodeURIComponent(login)}&select=${fields}`);
+    if (primary?.[0]) row = primary[0];
 
-  if (!row) {
-    const secondary = await supabaseRequest(`users?${secondaryField}=eq.${encodeURIComponent(login)}&select=${fields}`);
-    if (secondary?.[0]) row = secondary[0];
-  }
+    if (!row) {
+      const secondary = await supabaseRequest(`users?${secondaryField}=eq.${encodeURIComponent(login)}&select=${fields}`);
+      if (secondary?.[0]) row = secondary[0];
+    }
 
-  if (!row || !ADMIN_ROLES.has(row.role)) {
-    // Return generic error — do not reveal whether user exists
+    if (!row || !ADMIN_ROLES.has(row.role)) {
+      return json(response, 200, { success: false });
+    }
+
+    return json(response, 200, { success: true, email: row.email, role: row.role });
+  } catch (error) {
+    console.error("resolveLogin failed", error);
     return json(response, 200, { success: false });
   }
-
-  return json(response, 200, { success: true, email: row.email, role: row.role });
 }
 
 export default async function handler(request, response) {

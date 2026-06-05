@@ -118,7 +118,18 @@ const callAdminApi = async <T,>(payload: Record<string, unknown>): Promise<T> =>
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const data = await response.json();
+
+  const rawBody = await response.text();
+  let data: any = null;
+
+  if (rawBody) {
+    try {
+      data = JSON.parse(rawBody);
+    } catch {
+      throw new Error(response.ok ? 'Invalid admin response' : `Admin request failed (${response.status})`);
+    }
+  }
+
   if (!response.ok || data?.success === false) {
     throw new Error(data?.message || 'Admin request failed');
   }
