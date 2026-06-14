@@ -29,6 +29,7 @@ import { useToast } from '../context/ToastContext';
 import { sanitizeInput } from '../utils/security';
 import { normalizeArticleHtml } from '../utils/articleHtml';
 import { formatDayMonthYear, getTodayDayMonthYear } from '../utils/dateFormat';
+import { uploadArticleImage } from '../services/mediaService';
 import { LazyImage } from './LazyImage';
 import { BrandLogo } from './BrandLogo';
 import { LinkedText } from './LinkedText';
@@ -359,7 +360,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     const objectUrl = URL.createObjectURL(file);
     const img = new window.Image();
 
-    img.onload = () => {
+    img.onload = async () => {
       // Compress: max 1200x800, JPEG 75%
       const MAX_W = 1200;
       const MAX_H = 800;
@@ -377,8 +378,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
       const compressed = canvas.toDataURL('image/jpeg', 0.75);
       URL.revokeObjectURL(objectUrl);
-      setCurrentArticle(prev => ({ ...prev, imageUrl: compressed }));
-      addToast('სურათი აიტვირთა (' + Math.round(compressed.length / 1024) + ' KB)', 'success');
+      try {
+        const uploaded = await uploadArticleImage(compressed);
+        setCurrentArticle(prev => ({ ...prev, imageUrl: uploaded.secureUrl }));
+        addToast('სურათი Cloudinary-ზე აიტვირთა (' + Math.round((uploaded.bytes || compressed.length) / 1024) + ' KB)', 'success');
+      } catch (error) {
+        addToast(error instanceof Error ? error.message : 'სურათის Cloudinary-ზე ატვირთვა ვერ მოხერხდა', 'error');
+      }
     };
 
     img.onerror = () => {
