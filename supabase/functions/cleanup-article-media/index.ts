@@ -96,6 +96,7 @@ Deno.serve(async (req: Request) => {
 
   const cloudinaryPublicIds = [
     extractCloudinaryPublicId(imageUrl),
+    extractCloudinaryPublicId(video_url),
     extractCloudinaryPublicId(video_thumbnail_url),
   ].filter(Boolean) as string[];
 
@@ -114,16 +115,20 @@ Deno.serve(async (req: Request) => {
     data = result.data || [];
   }
 
-  const cloudinaryDeleted = [];
+  const cloudinaryDeleted: { publicId: string; result: string }[] = [];
+  const cloudinaryErrors: { publicId: string; error: string }[] = [];
+
   for (const publicId of cloudinaryPublicIds) {
     try {
       cloudinaryDeleted.push(await deleteCloudinaryImage(publicId));
     } catch (error) {
       const message = error instanceof Error ? error.message : "Cloudinary cleanup failed";
-      console.error("Cloudinary cleanup error:", message);
-      return new Response(JSON.stringify({ error: message }), { status: 500 });
+      console.error(`Cloudinary cleanup error for ${publicId}:`, message);
+      // Non-fatal: log and continue so one missing/failed image
+      // doesn't block cleanup of the remaining assets.
+      cloudinaryErrors.push({ publicId, error: message });
     }
   }
 
-  return new Response(JSON.stringify({ deleted: data, cloudinaryDeleted }), { status: 200 });
+  return new Response(JSON.stringify({ deleted: data, cloudinaryDeleted, cloudinaryErrors }), { status: 200 });
 });
