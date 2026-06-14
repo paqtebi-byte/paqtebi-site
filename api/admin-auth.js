@@ -171,13 +171,18 @@ async function handleLogin(body, response) {
     return json(response, 500, { success: false, message: "Admin secret is not configured" });
   }
 
-  if (body.secretCode !== adminSecret) {
-    return json(response, 401, { success: false, message: "საიდუმლო კოდი არასწორია" });
-  }
-
+  // Resolve the user first so we know their role before enforcing the secret.
   const admin = await findAdminByLogin(body.login);
   if (!admin || !ADMIN_ROLES.has(admin.role)) {
     return json(response, 401, { success: false, message: "მომხმარებელი ან პაროლი არასწორია" });
+  }
+
+  // Owners MUST supply the correct ADMIN_SECRET_CODE.
+  // Standard admins do NOT use the secret code — skip the check entirely.
+  if (admin.role === "owner") {
+    if (body.secretCode !== adminSecret) {
+      return json(response, 401, { success: false, message: "საიდუმლო კოდი არასწორია" });
+    }
   }
 
   let isValid = false;
