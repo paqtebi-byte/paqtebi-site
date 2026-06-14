@@ -26,7 +26,7 @@ AS $$
   SELECT EXISTS (
     SELECT 1
     FROM public.users u
-    WHERE u.id = auth.uid()
+    WHERE u.id = auth.uid()::text
       AND u.role IN ('admin', 'owner')
   );
 $$;
@@ -143,7 +143,7 @@ DROP POLICY IF EXISTS "users_admin_all"    ON public.users;
 -- application layer; use column-level privileges if stricter control needed.
 CREATE POLICY "users_self_read"
   ON public.users FOR SELECT
-  USING (auth.uid() = id);
+  USING (auth.uid()::text = id);
 
 -- Admins and owners can do anything.
 CREATE POLICY "users_admin_all"
@@ -242,21 +242,31 @@ CREATE POLICY "ad_placements_admin_delete"
 -- TABLE: ad_inquiries
 -- Public: INSERT (contact/ad inquiry form — anon submission)
 -- Admin:  SELECT / DELETE (view and manage inquiries)
+-- Only applied if the table exists (optional feature table).
 -- ─────────────────────────────────────────────────────────────
-ALTER TABLE public.ad_inquiries ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ad_inquiries'
+  ) THEN
+    ALTER TABLE public.ad_inquiries ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "ad_inquiries_public_insert" ON public.ad_inquiries;
-DROP POLICY IF EXISTS "ad_inquiries_admin_read"    ON public.ad_inquiries;
-DROP POLICY IF EXISTS "ad_inquiries_admin_delete"  ON public.ad_inquiries;
+    DROP POLICY IF EXISTS "ad_inquiries_public_insert" ON public.ad_inquiries;
+    DROP POLICY IF EXISTS "ad_inquiries_admin_read"    ON public.ad_inquiries;
+    DROP POLICY IF EXISTS "ad_inquiries_admin_delete"  ON public.ad_inquiries;
 
-CREATE POLICY "ad_inquiries_public_insert"
-  ON public.ad_inquiries FOR INSERT
-  WITH CHECK (true);
+    CREATE POLICY "ad_inquiries_public_insert"
+      ON public.ad_inquiries FOR INSERT
+      WITH CHECK (true);
 
-CREATE POLICY "ad_inquiries_admin_read"
-  ON public.ad_inquiries FOR SELECT
-  USING (public.is_admin());
+    CREATE POLICY "ad_inquiries_admin_read"
+      ON public.ad_inquiries FOR SELECT
+      USING (public.is_admin());
 
-CREATE POLICY "ad_inquiries_admin_delete"
-  ON public.ad_inquiries FOR DELETE
-  USING (public.is_admin());
+    CREATE POLICY "ad_inquiries_admin_delete"
+      ON public.ad_inquiries FOR DELETE
+      USING (public.is_admin());
+  END IF;
+END
+$$;
