@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdInquiry, AdPlacement, Article, AnalyticsData, Poll } from '../types';
-import { useArticlesContext as useArticles } from '../context/ArticlesContext';
+import { useArticlesContext } from '../context/ArticlesContext';
 import { useBreakingNews } from '../hooks/useBreakingNews';
 import { useComments } from '../hooks/useComments';
 import {
@@ -68,7 +68,7 @@ const NAV_CONFIG: { tab: Tab; icon: any; label: string; badge?: string }[] = [
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const navigate = useNavigate();
-  const { articles, refreshLocalOnly, addArticle, updateArticle, removeArticle } = useArticles();
+  const { articles, refreshLocalOnly, addArticle, updateArticle, removeArticle } = useArticlesContext();
   const { breakingNews, addTickerItem, removeTickerItem } = useBreakingNews();
   const { comments, removeComment } = useComments();
   const { addToast } = useToast();
@@ -96,15 +96,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   useEffect(() => {
     refreshLocalOnly();
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === 'ADS') {
-      apiService.fetchAdPlacement().then(setCurrentAd);
-      apiService.fetchAdInquiries().then(setAdInquiries);
+    apiService.fetchAdPlacement().then(setCurrentAd);
+    apiService.fetchAdInquiries().then(data => {
+      setAdInquiries(data);
       setAdsLoaded(true);
-    }
-  }, [activeTab]);
+    });
+  }, []);
 
   useEffect(() => {
     const refreshAdInquiries = () => {
@@ -191,11 +188,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     setActiveTab(tab);
     setIsMobileMenuOpen(false);
     if (tab === 'POLLS') setPolls(getPolls());
-    if (tab === 'ADS' && !adsLoaded) {
-      apiService.fetchAdPlacement().then(setCurrentAd);
-      apiService.fetchAdInquiries().then(setAdInquiries);
-      setAdsLoaded(true);
-    }
     if (isContentTab(tab)) {
       setIsEditing(false);
       setCurrentArticle({});

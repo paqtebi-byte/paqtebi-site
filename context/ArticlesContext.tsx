@@ -1,28 +1,21 @@
-import React, { createContext, useContext, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
 import { useArticles } from '../hooks/useArticles';
 
-type ArticlesContextType = ReturnType<typeof useArticles>;
+const ArticlesContext = createContext<ReturnType<typeof useArticles> | null>(null);
 
-const ArticlesContext = createContext<ArticlesContextType | undefined>(undefined);
-
-export const ArticlesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+/** Fetches articles once and shares state across all components */
+export const ArticlesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const articles = useArticles();
 
   useEffect(() => {
     articles.loadAllNews();
-  }, [articles.loadAllNews]);
+  }, []);
 
-  return (
-    <ArticlesContext.Provider value={articles}>
-      {children}
-    </ArticlesContext.Provider>
-  );
+  return <ArticlesContext.Provider value={articles}>{children}</ArticlesContext.Provider>;
 };
 
 export const useArticlesContext = () => {
-  const context = useContext(ArticlesContext);
-  if (context === undefined) {
-    throw new Error('useArticlesContext must be used within an ArticlesProvider');
-  }
-  return context;
+  const ctx = useContext(ArticlesContext);
+  if (!ctx) throw new Error('useArticlesContext must be used within ArticlesProvider');
+  return ctx;
 };

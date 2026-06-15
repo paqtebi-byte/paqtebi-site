@@ -35,10 +35,8 @@ import { NAV_ITEMS, FEED_CATEGORIES } from "./config";
 import { ToastProvider } from "./context/ToastContext";
 import { DarkModeProvider } from "./context/DarkModeContext";
 
-import { useAuthContext as useAuth } from "./context/AuthContext";
-import { useArticlesContext as useArticles } from "./context/ArticlesContext";
-import { AuthProvider } from "./context/AuthContext";
-import { ArticlesProvider } from "./context/ArticlesContext";
+import { AuthProvider, useAuthContext } from './context/AuthContext';
+import { ArticlesProvider, useArticlesContext } from './context/ArticlesContext';
 import { useBreakingNews } from "./hooks/useBreakingNews";
 import { useBookmarks } from "./hooks/useBookmarks";
 
@@ -131,8 +129,8 @@ const getEffectiveSiteUser = (
 ───────────────────────────────────────────────────────────────── */
 const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home" }) => {
   const navigate = useNavigate();
-  const { currentUser, isAdminAuthenticated, logoutPublic, setCurrentUser } = useAuth();
-  const { articles, loading, error } = useArticles();
+  const { currentUser, isAdminAuthenticated, logoutPublic, setCurrentUser } = useAuthContext();
+  const { articles, loading, error } = useArticlesContext();
   const { breakingNews } = useBreakingNews();
   const { bookmarkedIds } = useBookmarks();
 
@@ -883,8 +881,8 @@ const ArticleDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUser, isAdminAuthenticated, currentAdmin, setCurrentUser } = useAuth();
-  const { articles, loading } = useArticles();
+  const { currentUser, isAdminAuthenticated, currentAdmin, setCurrentUser } = useAuthContext();
+  const { articles, loading } = useArticlesContext();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   // undefined = not yet fetched, null = fetch done (not found), Article = fetched successfully
   const [fullArticle, setFullArticle] = useState<Article | null | undefined>(undefined);
@@ -949,7 +947,7 @@ const LiveRoutePage: React.FC = () => (
 );
 
 const VideoReportsRoutePage: React.FC = () => {
-  const { currentUser, isAdminAuthenticated, currentAdmin, setCurrentUser } = useAuth();
+  const { currentUser, isAdminAuthenticated, currentAdmin, setCurrentUser } = useAuthContext();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const effectiveUser = getEffectiveSiteUser(currentUser, isAdminAuthenticated, currentAdmin);
 
@@ -974,7 +972,7 @@ const VideoReportsRoutePage: React.FC = () => {
 };
 
 const PodcastsRoutePage: React.FC = () => {
-  const { currentUser, isAdminAuthenticated, currentAdmin, setCurrentUser } = useAuth();
+  const { currentUser, isAdminAuthenticated, currentAdmin, setCurrentUser } = useAuthContext();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const effectiveUser = getEffectiveSiteUser(currentUser, isAdminAuthenticated, currentAdmin);
 
@@ -999,7 +997,7 @@ const PodcastsRoutePage: React.FC = () => {
 };
 
 const InterestingRoutePage: React.FC = () => {
-  const { currentUser, isAdminAuthenticated, currentAdmin, setCurrentUser } = useAuth();
+  const { currentUser, isAdminAuthenticated, currentAdmin, setCurrentUser } = useAuthContext();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const effectiveUser = getEffectiveSiteUser(currentUser, isAdminAuthenticated, currentAdmin);
 
@@ -1027,7 +1025,7 @@ const InterestingRoutePage: React.FC = () => {
    ADMIN PAGES
 ───────────────────────────────────────────────────────────────── */
 const AdminLoginPage: React.FC = () => {
-  const { isAdminAuthenticated, isAdminAuthLoading } = useAuth();
+  const { isAdminAuthenticated, isAdminAuthLoading } = useAuthContext();
   const navigate = useNavigate();
   useEffect(() => {
     if (!isAdminAuthLoading && isAdminAuthenticated) navigate("/admin", { replace: true });
@@ -1038,7 +1036,7 @@ const AdminLoginPage: React.FC = () => {
 
 const AdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
-  const { loadAllNews } = useArticles();
+  const { loadAllNews } = useArticlesContext();
   const handleLogout = () => { loadAllNews(); navigate("/"); };
   return <Suspense fallback={<LoadingSkeleton />}><AdminDashboard onLogout={handleLogout} /></Suspense>;
 };
@@ -1072,17 +1070,17 @@ const AppContent: React.FC = () => (
 );
 
 const App: React.FC = () => (
-  <DarkModeProvider>
-    <ToastProvider>
-      <ErrorBoundary>
-        <AuthProvider>
-          <ArticlesProvider>
+  <AuthProvider>
+    <ArticlesProvider>
+      <DarkModeProvider>
+        <ToastProvider>
+          <ErrorBoundary>
             <AppContent />
-          </ArticlesProvider>
-        </AuthProvider>
-      </ErrorBoundary>
-    </ToastProvider>
-  </DarkModeProvider>
+          </ErrorBoundary>
+        </ToastProvider>
+      </DarkModeProvider>
+    </ArticlesProvider>
+  </AuthProvider>
 );
 
 export default App;
