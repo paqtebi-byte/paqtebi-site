@@ -239,7 +239,7 @@ class RemoteApiService {
             created_at: new Date().toISOString(),
           },
         ])
-        .select()
+        .select("id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived")
         .single();
 
       if (error) {
@@ -284,7 +284,7 @@ class RemoteApiService {
         .from(DATABASE_CONFIG.TABLES.ARTICLES)
         .update(this.mapArticleToDb(article))
         .eq("id", id)
-        .select()
+        .select("id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived")
         .single();
 
       if (error) {
@@ -621,7 +621,7 @@ class RemoteApiService {
             created_at: new Date().toISOString(),
           },
         ])
-        .select()
+        .select("id, text, active, created_at")
         .single();
 
       if (error) {
@@ -755,7 +755,7 @@ class RemoteApiService {
           },
           { onConflict: "id" },
         )
-        .select()
+        .select("id, title, image_url, target_url, active, updated_at")
         .single();
 
       if (error) throw error;
@@ -836,7 +836,7 @@ class RemoteApiService {
             created_at: localInquiry.createdAt,
           },
         ])
-        .select()
+        .select("id, full_name, phone, email, message, created_at")
         .single();
 
       if (error) throw error;

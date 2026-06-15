@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdInquiry, AdPlacement, Article, AnalyticsData, Poll } from '../types';
-import { useArticles } from '../hooks/useArticles';
+import { useArticlesContext as useArticles } from '../context/ArticlesContext';
 import { useBreakingNews } from '../hooks/useBreakingNews';
 import { useComments } from '../hooks/useComments';
 import {
@@ -92,6 +92,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [adInquiries, setAdInquiries] = useState<AdInquiry[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
+  const [adsLoaded, setAdsLoaded] = useState(false);
+
   useEffect(() => {
     refreshLocalOnly();
   }, []);
@@ -100,6 +102,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     if (activeTab === 'ADS') {
       apiService.fetchAdPlacement().then(setCurrentAd);
       apiService.fetchAdInquiries().then(setAdInquiries);
+      setAdsLoaded(true);
     }
   }, [activeTab]);
 
@@ -188,9 +191,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     setActiveTab(tab);
     setIsMobileMenuOpen(false);
     if (tab === 'POLLS') setPolls(getPolls());
-    if (tab === 'ADS') {
+    if (tab === 'ADS' && !adsLoaded) {
       apiService.fetchAdPlacement().then(setCurrentAd);
       apiService.fetchAdInquiries().then(setAdInquiries);
+      setAdsLoaded(true);
     }
     if (isContentTab(tab)) {
       setIsEditing(false);
@@ -407,7 +411,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     const objectUrl = URL.createObjectURL(file);
     const img = new window.Image();
 
-    img.onload = () => {
+    img.onload = async () => {
       const canvas = document.createElement('canvas');
       canvas.width = 600;
       canvas.height = 500;
@@ -421,8 +425,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       ctx.drawImage(img, x, y, width, height);
       const compressed = canvas.toDataURL('image/webp', 0.85);
       URL.revokeObjectURL(objectUrl);
-      setCurrentAd((prev) => ({ ...prev, imageUrl: compressed }));
-      addToast('რეკლამის სურათი აიტვირთა', 'success');
+
+      try {
+        const uploaded = await uploadArticleImage(compressed);
+        setCurrentAd((prev) => ({ ...prev, imageUrl: uploaded.secureUrl }));
+        addToast('რეკლამის სურათი Cloudinary-ზე აიტვირთა (' + Math.round((uploaded.bytes || compressed.length) / 1024) + ' KB)', 'success');
+      } catch (error) {
+        // Fallback: store base64 if Cloudinary fails
+        setCurrentAd((prev) => ({ ...prev, imageUrl: compressed }));
+        addToast(error instanceof Error ? error.message : 'Cloudinary ატვირთვა ვერ მოხერხდა, ლოკალური სურათი შეინახა', 'error');
+      }
     };
 
     img.onerror = () => {
