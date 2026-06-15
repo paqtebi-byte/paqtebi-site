@@ -35,8 +35,10 @@ import { NAV_ITEMS, FEED_CATEGORIES } from "./config";
 import { ToastProvider } from "./context/ToastContext";
 import { DarkModeProvider } from "./context/DarkModeContext";
 
-import { useAuth } from "./hooks/useAuth";
-import { useArticles } from "./hooks/useArticles";
+import { useAuthContext as useAuth } from "./context/AuthContext";
+import { useArticlesContext as useArticles } from "./context/ArticlesContext";
+import { AuthProvider } from "./context/AuthContext";
+import { ArticlesProvider } from "./context/ArticlesContext";
 import { useBreakingNews } from "./hooks/useBreakingNews";
 import { useBookmarks } from "./hooks/useBookmarks";
 
@@ -1077,7 +1079,11 @@ const App: React.FC = () => (
   <DarkModeProvider>
     <ToastProvider>
       <ErrorBoundary>
-        <AppContent />
+        <AuthProvider>
+          <ArticlesProvider>
+            <AppContent />
+          </ArticlesProvider>
+        </AuthProvider>
       </ErrorBoundary>
     </ToastProvider>
   </DarkModeProvider>
