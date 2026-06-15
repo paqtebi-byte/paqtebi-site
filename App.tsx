@@ -132,7 +132,7 @@ const getEffectiveSiteUser = (
 const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home" }) => {
   const navigate = useNavigate();
   const { currentUser, isAdminAuthenticated, logoutPublic, setCurrentUser } = useAuth();
-  const { articles, loading, error, loadAllNews } = useArticles();
+  const { articles, loading, error } = useArticles();
   const { breakingNews } = useBreakingNews();
   const { bookmarkedIds } = useBookmarks();
 
@@ -144,7 +144,6 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
-  useEffect(() => { loadAllNews(); }, [loadAllNews]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -885,7 +884,7 @@ const ArticleDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser, isAdminAuthenticated, currentAdmin, setCurrentUser } = useAuth();
-  const { articles, loading, loadAllNews } = useArticles();
+  const { articles, loading } = useArticles();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   // undefined = not yet fetched, null = fetch done (not found), Article = fetched successfully
   const [fullArticle, setFullArticle] = useState<Article | null | undefined>(undefined);
@@ -893,9 +892,6 @@ const ArticleDetailPage: React.FC = () => {
 
   const stateArticle = location.state?.article as Article | undefined;
 
-  useEffect(() => {
-    loadAllNews();
-  }, [loadAllNews]);
 
   // Always fetch the full article by ID so we have the `content` body.
   // The list cache and navigation state both intentionally omit `content` to save egress.
