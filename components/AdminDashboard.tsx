@@ -472,12 +472,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     addToast('რეკლამა წაიშალა', 'success');
   };
 
-  const handleAddBreakingNews = (e: React.FormEvent) => {
+  const handleAddBreakingNews = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newBreakingText.trim()) {
-      addTickerItem(sanitizeInput(newBreakingText.trim()));
+    if (!newBreakingText.trim()) return;
+    try {
+      await addTickerItem(sanitizeInput(newBreakingText.trim()));
       setNewBreakingText('');
       addToast('სიახლე დაემატა ლენტას', 'success');
+    } catch (err) {
+      console.error('[AdminDashboard] Failed to add breaking news ticker item:', err);
+      addToast('შეცდომა: ვერ მოხერხდა სიახლის დამატება', 'error');
     }
   };
 

@@ -27,28 +27,55 @@ const saveToCache = (data: BreakingNewsItem[]) => {
 export const useBreakingNews = () => {
   const [breakingNews, setBreakingNews] = useState<BreakingNewsItem[]>(() => getFromCache() ?? []);
 
+  /**
+   * Always fetches fresh data from Supabase, bypassing the session cache.
+   * Called after insert/delete to immediately reflect DB state in the UI.
+   */
+  const fetchFresh = async () => {
+    try {
+      const fresh = await apiService.fetchBreakingNews();
+      saveToCache(fresh);
+      setBreakingNews(fresh);
+    } catch (err) {
+      console.error("[useBreakingNews] fetchFresh failed:", err);
+    }
+  };
+
+  /**
+   * Refreshes from cache when available; falls back to Supabase.
+   * Used on initial mount to avoid unnecessary network calls.
+   */
   const refreshTicker = async () => {
     const cached = getFromCache();
-    if (cached) { setBreakingNews(cached); return; }
-    const fresh = await apiService.fetchBreakingNews();
-    saveToCache(fresh);
-    setBreakingNews(fresh);
+    if (cached) {
+      setBreakingNews(cached);
+      return;
+    }
+    await fetchFresh();
   };
 
   const addTickerItem = async (text: string) => {
-    await apiService.insertBreakingNews(text);
+    const result = await apiService.insertBreakingNews(text);
+    if (!result) {
+      throw new Error("Failed to insert breaking news item into Supabase.");
+    }
+    // Invalidate cache then force a fresh fetch so the UI reflects the new row immediately
     sessionStorage.removeItem(CACHE_KEY);
-    await refreshTicker();
+    await fetchFresh();
   };
 
   const removeTickerItem = async (id: string) => {
-    await apiService.deleteBreakingNews(id);
+    const success = await apiService.deleteBreakingNews(id);
+    if (!success) {
+      throw new Error("Failed to delete breaking news item from Supabase.");
+    }
     sessionStorage.removeItem(CACHE_KEY);
-    await refreshTicker();
+    await fetchFresh();
   };
 
   useEffect(() => {
-    if (!getFromCache()) refreshTicker();
+    // On mount: use cached data if fresh, otherwise hit Supabase
+    refreshTicker();
   }, []);
 
   return {
