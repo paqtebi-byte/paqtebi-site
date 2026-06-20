@@ -269,10 +269,43 @@ async function handleCreateAdmin(body, response) {
     return json(response, 409, { success: false, message: "ეს username ან email უკვე არსებობს" });
   }
 
+  // 1. Create user in Supabase Auth so signInWithPassword works for RLS
+  const { supabaseUrl, serviceKey } = getConfig();
+  let authUserId = crypto.randomUUID(); // fallback if auth creation fails
+
+  try {
+    const authResponse = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
+      method: "POST",
+      headers: {
+        apikey: serviceKey,
+        authorization: `Bearer ${serviceKey}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        email_confirm: true, // auto-confirm so signInWithPassword works immediately
+      }),
+    });
+
+    if (authResponse.ok) {
+      const authData = await authResponse.json();
+      if (authData?.id) {
+        authUserId = authData.id; // use the auth.users UUID as public.users.id
+      }
+    } else {
+      const errText = await authResponse.text();
+      console.warn(`[handleCreateAdmin] Supabase Auth user creation failed (${authResponse.status}): ${errText}. Falling back to random UUID.`);
+    }
+  } catch (authErr) {
+    console.warn("[handleCreateAdmin] Supabase Auth user creation error:", authErr);
+  }
+
+  // 2. Insert into public.users with the same ID as auth.users
   const rows = await supabaseRequest("users?select=id,username,email,role,created_at", {
     method: "POST",
     body: JSON.stringify({
-      id: crypto.randomUUID(),
+      id: authUserId,
       username,
       email,
       password_hash: hashPassword(password),

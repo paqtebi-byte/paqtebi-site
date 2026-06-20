@@ -236,13 +236,33 @@ export const loginAdminSecure = async (login: string, password: string, secretCo
     localStorage.setItem(STORAGE_KEY_ADMIN_AUTH, data.token);
     const safeAdmin = cacheAdmin(data.admin.id, data.admin.username, data.admin.email, data.admin.role);
 
-    // Also establish a native Supabase Auth session so auth.uid() is populated for RLS.
-    // The custom token (above) is still kept for owner-only API actions (listAdmins, etc.).
-    // We resolve the email from public.users since the login field may be a username.
+    // Establish a native Supabase Auth session so auth.uid() is populated for RLS.
+    // Without this, all Supabase client operations (insert/update/delete) will fail
+    // with 401 because the anon key doesn't satisfy RLS write policies.
     const supabase = getSupabaseClient();
     if (supabase && data.admin.email) {
-      await supabase.auth.signInWithPassword({ email: data.admin.email, password });
-      // Failure is intentionally ignored — the custom-token session is still valid.
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: data.admin.email,
+        password,
+      });
+
+      if (signInError) {
+        // The admin exists in public.users but not in auth.users.
+        // This means the admin account was created via the backend (service role)
+        // without a corresponding Supabase Auth user. Log a clear warning.
+        console.error(
+          `[loginAdminSecure] Supabase Auth signIn failed for ${data.admin.email}: ${signInError.message}. ` +
+          `The admin likely doesn't exist in auth.users. ` +
+          `Create their auth account via the Supabase dashboard or SQL: ` +
+          `SELECT supabase_auth_admin.create_user('${data.admin.email}', '<password>');`
+        );
+        // Clean up the custom token since we can't do any RLS-protected operations
+        clearAdminCache();
+        return {
+          success: false,
+          message: 'ავტორიზაცია ვერ მოხერხდა: Supabase Auth ანგარიში არ არსებობს. დაუკავშირდით ადმინისტრატორს.',
+        };
+      }
     }
 
     return {
