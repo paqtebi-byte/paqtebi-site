@@ -15,6 +15,7 @@ import {
 } from '../services/authService';
 import { getAdPlacement, getPolls, savePoll, deletePoll, setActivePoll } from '../services/storageService';
 import apiService from '../services/apiService';
+import getSupabaseClient from '../services/supabaseClient';
 import {
   Plus, Trash2, Edit2, LogOut, Save, X,
   LayoutDashboard, Monitor, LayoutTemplate, Columns,
@@ -1571,26 +1572,59 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   </button>
                 </div>
                 <form
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                     e.preventDefault();
                     if (currentPoll.question && currentPoll.options && currentPoll.options.length >= 2) {
-                      const poll: Poll = {
-                        id: currentPoll.id || Date.now().toString(),
-                        question: sanitizeInput(currentPoll.question),
-                        options: currentPoll.options.map((opt) => ({
-                          id: opt.id || Date.now().toString() + Math.random().toString(36).substr(2, 9),
-                          text: sanitizeInput(opt.text),
-                          votes: opt.votes || 0,
-                        })),
-                        totalVotes: currentPoll.totalVotes || 0,
-                        active: currentPoll.active || false,
-                        createdAt: currentPoll.createdAt || new Date().toISOString(),
-                      };
-                      savePoll(poll);
-                      if (poll.active) setActivePoll(poll.id);
-                      addToast('გამოკითხვა შენახულია', 'success');
-                      setIsEditingPoll(false);
-                      setPolls(getPolls());
+                      try {
+                        const poll: Poll = {
+                          id: currentPoll.id || crypto.randomUUID(),
+                          question: sanitizeInput(currentPoll.question),
+                          options: currentPoll.options.map((opt) => ({
+                            id: opt.id || crypto.randomUUID(),
+                            text: sanitizeInput(opt.text),
+                            votes: opt.votes || 0,
+                          })),
+                          totalVotes: currentPoll.totalVotes || 0,
+                          active: currentPoll.active || false,
+                          createdAt: currentPoll.createdAt || new Date().toISOString(),
+                        };
+
+                        const supabase = getSupabaseClient();
+                        if (supabase) {
+                          const { error: pollError } = await supabase
+                            .from('polls')
+                            .upsert({
+                              id: poll.id,
+                              question: poll.question,
+                              total_votes: poll.totalVotes,
+                              active: poll.active,
+                              created_at: poll.createdAt
+                            });
+                          
+                          if (pollError) throw pollError;
+
+                          for (const opt of poll.options) {
+                            const { error: optError } = await supabase
+                              .from('poll_options')
+                              .upsert({
+                                id: opt.id,
+                                poll_id: poll.id,
+                                text: opt.text,
+                                votes: opt.votes
+                              });
+                            if (optError) throw optError;
+                          }
+                        }
+
+                        savePoll(poll);
+                        if (poll.active) setActivePoll(poll.id);
+                        addToast('გამოკითხვა შენახულია', 'success');
+                        setIsEditingPoll(false);
+                        setPolls(getPolls());
+                      } catch (err) {
+                        console.error('Error saving poll to Supabase:', err);
+                        addToast('შეცდომა: გამოკითხვის შენახვა ვერ მოხერხდა', 'error');
+                      }
                     } else {
                       addToast('შეავსეთ ყველა ველი', 'error');
                     }
