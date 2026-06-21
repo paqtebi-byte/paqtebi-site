@@ -230,7 +230,11 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
   };
 
   const handleBackToHome = () => {
-    navigate("/");
+    if (window.location.pathname === '/') {
+      window.location.reload();
+    } else {
+      navigate("/");
+    }
     setSearchQuery("");
     setIsSearchOpen(false);
   };
