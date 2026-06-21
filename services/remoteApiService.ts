@@ -156,7 +156,7 @@ class RemoteApiService {
         )
         .eq("is_archived", false)
         .order("created_at", { ascending: false })
-        .range(0, 49);
+        .range(0, 99);
 
       if (contentType !== "all") {
         query = query.eq("content_type", contentType);
