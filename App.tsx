@@ -809,7 +809,6 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
             {/* Sidebar */}
             <aside className="lg:col-span-4">
               <div id="sidebar-scroll" className="sticky top-24 max-h-[calc(100vh-6rem)] overflow-y-auto pr-2 pb-6 scroll-smooth custom-scrollbar">
-                {console.log('VIDEO ARTICLES:', articles.filter((a) => a.contentType === 'video' || ['ვიდეო რეპორტაჟები', 'პოდკასტები', 'საინტერესო'].includes(a.category)))}
                 <Sidebar articles={articleOnlyItems} customArticles={sidebarArticles} videos={articles.filter((a) => a.contentType === 'video' || ['ვიდეო რეპორტაჟები', 'პოდკასტები', 'საინტერესო'].includes(a.category))} onArticleClick={handleArticleClick} />
               </div>
             </aside>
