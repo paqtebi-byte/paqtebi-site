@@ -359,7 +359,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({ articles = [], cust
         </div>
       )}
 
-      {/* Video Sections */}
+      {/* Sidebar Video Sections */}
       <div className="space-y-6">
         {renderVideoSection("ვიდეო რეპორტაჟები", videoReports)}
         {renderVideoSection("პოდკასტები", podcasts)}
