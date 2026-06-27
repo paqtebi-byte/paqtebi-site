@@ -433,16 +433,23 @@ class RemoteApiService {
 
     // Use Supabase — resolve articleTitle with a targeted single-row query instead of fetchArticles()
     try {
-      const { data, error } = await this.supabase!
+      const insertPayload = {
+        article_id: comment.articleId,
+        author: comment.author,
+        text: (comment as any).text,
+        timestamp: Date.now(),
+      };
+      console.log("COMMENT INPUT:", comment);
+      console.log("INSERT PAYLOAD:", insertPayload);
+
+      const { data, error } = await (this.supabase!
         .from(DATABASE_CONFIG.TABLES.COMMENTS)
-        .insert([
-          {
-            article_id: comment.articleId,
-            author: comment.author,
-            text: (comment as any).text,
-            timestamp: Date.now(),
-          },
-        ])
+        .insert(insertPayload) as any)
+        .options({
+          headers: {
+            'Prefer': 'override=system_value'
+          }
+        })
         .select("id, article_id, author, text, timestamp, reactions")
         .single();
 
