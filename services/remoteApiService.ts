@@ -437,7 +437,9 @@ class RemoteApiService {
         .from(DATABASE_CONFIG.TABLES.COMMENTS)
         .insert([
           {
-            ...comment,
+            article_id: comment.articleId,
+            author: comment.author,
+            content: (comment as any).text ?? (comment as any).content,
             timestamp: Date.now(),
           },
         ])
@@ -448,8 +450,14 @@ class RemoteApiService {
         throw new Error(`Error inserting comment: ${error.message}`);
       }
 
-      const newComment = data as unknown as Comment;
-      newComment.articleId = (data as any).article_id ?? comment.articleId;
+      const newComment: Comment = {
+        id: (data as any).id,
+        articleId: (data as any).article_id ?? comment.articleId,
+        author: (data as any).author,
+        text: (data as any).content,
+        timestamp: (data as any).timestamp,
+        reactions: (data as any).reactions,
+      };
 
       // Resolve articleTitle with a single targeted lookup — no full table scan
       const { data: articleRow } = await this.supabase!
