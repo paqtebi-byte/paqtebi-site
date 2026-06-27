@@ -386,7 +386,7 @@ class RemoteApiService {
         id: row.id,
         articleId: row.article_id,
         author: row.author,
-        content: row.content,
+        text: row.content,
         timestamp: row.timestamp,
         reactions: row.reactions,
         articleTitle: row.articles?.title ?? undefined,
