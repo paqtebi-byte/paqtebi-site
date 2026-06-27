@@ -366,7 +366,7 @@ class RemoteApiService {
       let query = this.supabase!
         .from(DATABASE_CONFIG.TABLES.COMMENTS)
         .select(
-          `id, article_id, author, content, timestamp, reactions,
+          `id, article_id, author, text, timestamp, reactions,
           articles:${DATABASE_CONFIG.TABLES.ARTICLES}!article_id ( title )`
         )
         .order("timestamp", { ascending: false })
@@ -386,7 +386,7 @@ class RemoteApiService {
         id: row.id,
         articleId: row.article_id,
         author: row.author,
-        text: row.content,
+        text: row.text,
         timestamp: row.timestamp,
         reactions: row.reactions,
         articleTitle: row.articles?.title ?? undefined,
@@ -439,11 +439,11 @@ class RemoteApiService {
           {
             article_id: comment.articleId,
             author: comment.author,
-            content: (comment as any).text ?? (comment as any).content,
+            text: (comment as any).text,
             timestamp: Date.now(),
           },
         ])
-        .select("id, article_id, author, content, timestamp, reactions")
+        .select("id, article_id, author, text, timestamp, reactions")
         .single();
 
       if (error) {
@@ -454,7 +454,7 @@ class RemoteApiService {
         id: (data as any).id,
         articleId: (data as any).article_id ?? comment.articleId,
         author: (data as any).author,
-        text: (data as any).content,
+        text: (data as any).text,
         timestamp: (data as any).timestamp,
         reactions: (data as any).reactions,
       };
