@@ -746,10 +746,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 {[
                   { label: 'სტატიები', value: analytics.totalArticles, icon: FileText, color: '#3b82f6', bg: '#eff6ff', change: '+12%', up: true },
                   { label: 'მომხმარებლები', value: analytics.totalUsers, icon: Users, color: '#8b5cf6', bg: '#f5f3ff', change: '+5%', up: true },
-                  { label: 'კომენტარები', value: analytics.totalComments, icon: MessageSquare, color: '#f59e0b', bg: '#fffbeb', change: '0%', up: false },
+                  { label: 'კომენტარები', value: analytics.totalComments, icon: MessageSquare, color: '#f59e0b', bg: '#fffbeb', change: '0%', up: false, tab: 'COMMENTS' },
                   { label: 'ნახვები', value: analytics.totalViews.toLocaleString(), icon: Eye, color: '#10b981', bg: '#f0fdf4', change: '+24%', up: true },
                 ].map((stat, i) => (
-                  <div key={i} className="stat-card animate-fade-up">
+                  <div 
+                    key={i} 
+                    className={`stat-card animate-fade-up ${stat.tab ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+                    onClick={() => stat.tab && setActiveTab(stat.tab as Tab)}
+                  >
                     <div className="flex items-start justify-between mb-4">
                       <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: stat.bg, color: stat.color }}>
                         <stat.icon size={20} />
