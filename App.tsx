@@ -538,11 +538,11 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
       {/* ── HERO SECTION ────────────────────────────────────────── */}
       {viewMode === "home" && (
         loading ? (
-          <div className="w-full animate-pulse bg-gray-200 dark:bg-gray-900" style={{ height: "520px" }} />
+          <div className="w-full animate-pulse bg-gray-200 dark:bg-gray-900" style={{ height: "400px" }} />
         ) : (
         <section
           className={`relative w-full overflow-hidden group ${heroHasArticleContent ? "cursor-pointer" : ""}`}
-          style={{ height: "520px" }}
+          style={{ height: "400px" }}
           onClick={() => heroHasArticleContent && heroArticle && handleArticleClick(heroArticle)}
         >
           <div className="absolute inset-0">
