@@ -91,6 +91,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [currentPoll, setCurrentPoll] = useState<Partial<Poll>>({});
   const [currentAd, setCurrentAd] = useState<AdPlacement>(() => getAdPlacement());
   const [adInquiries, setAdInquiries] = useState<AdInquiry[]>([]);
+  const [analyticsCounts, setAnalyticsCounts] = useState<Pick<AnalyticsData, 'totalArticles' | 'totalViews'> | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const [adsLoaded, setAdsLoaded] = useState(false);
@@ -103,6 +104,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       setAdsLoaded(true);
     });
   }, []);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const refreshAnalytics = () => {
+      apiService.fetchAnalytics()
+        .then((data) => {
+          if (!isCancelled) setAnalyticsCounts(data);
+        })
+        .catch((error) => {
+          console.warn('[AdminDashboard] Failed to refresh analytics:', error);
+        });
+    };
+
+    refreshAnalytics();
+
+    const handleFocus = () => {
+      if (activeTab === 'ANALYTICS') refreshAnalytics();
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && activeTab === 'ANALYTICS') {
+        refreshAnalytics();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('paqtebi-article-view-tracked', refreshAnalytics);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      isCancelled = true;
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('paqtebi-article-view-tracked', refreshAnalytics);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [activeTab, articles.length]);
 
   useEffect(() => {
     const refreshAdInquiries = () => {
@@ -493,10 +530,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   };
 
   const analytics: AnalyticsData = {
-    totalArticles: articles.length,
+    totalArticles: analyticsCounts?.totalArticles ?? articles.length,
     totalUsers: users.length,
     totalComments: comments.length,
-    totalViews: articles.length * 145 + 500,
+    totalViews: analyticsCounts?.totalViews ?? 0,
   };
 
   const activeContentType = getContentTypeForTab(activeTab);

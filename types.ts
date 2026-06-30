@@ -66,7 +66,7 @@ export interface AnalyticsData {
   totalArticles: number;
   totalUsers: number;
   totalComments: number;
-  totalViews: number; // Simulated
+  totalViews: number;
 }
 
 export interface PollOption {

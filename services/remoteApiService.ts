@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { AdInquiry, AdPlacement, Article, Comment, BreakingNewsItem, User } from "../types";
+import { AdInquiry, AdPlacement, Article, Comment, BreakingNewsItem, User, AnalyticsData } from "../types";
 import { DATABASE_CONFIG } from "../config/database";
 import getSupabaseClient from "./supabaseClient";
 
@@ -14,6 +14,8 @@ class RemoteApiService {
   private readonly USER_STORAGE_KEY = "paqtebi_users";
   private readonly AD_STORAGE_KEY = "paqtebi_ad_placement";
   private readonly AD_INQUIRIES_STORAGE_KEY = "paqtebi_ad_inquiries";
+  private readonly VIEW_STORAGE_KEY = "paqtebi_article_views";
+  private readonly VIEW_EVENT_AUTHOR = "__paqtebi_view__";
 
   constructor() {
     if (!DATABASE_CONFIG.USE_LOCAL_STORAGE) {
@@ -138,6 +140,10 @@ class RemoteApiService {
     };
   }
 
+  private isAnalyticsCommentRow(row: any): boolean {
+    return row?.author === this.VIEW_EVENT_AUTHOR || String(row?.text || "").startsWith("[[paqtebi-view:");
+  }
+
   private async fetchCommentsFromApi(articleId?: string): Promise<Comment[]> {
     const query = articleId ? `?articleId=${encodeURIComponent(articleId)}` : "";
     const response = await fetch(`/api/comments${query}`);
@@ -179,6 +185,72 @@ class RemoteApiService {
     }
 
     return true;
+  }
+
+  private getLocalViewEvents(): { articleId: string; timestamp: number }[] {
+    try {
+      const stored = localStorage.getItem(this.VIEW_STORAGE_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private recordLocalArticleView(articleId: string) {
+    try {
+      const events = this.getLocalViewEvents();
+      const nextEvents = [...events, { articleId, timestamp: Date.now() }].slice(-5000);
+      localStorage.setItem(this.VIEW_STORAGE_KEY, JSON.stringify(nextEvents));
+    } catch {
+      // Local view history is best-effort only.
+    }
+  }
+
+  async fetchAnalytics(): Promise<Pick<AnalyticsData, "totalArticles" | "totalViews">> {
+    try {
+      const response = await fetch("/api/analytics");
+      if (!response.ok) throw new Error(`Analytics API failed: ${response.status}`);
+
+      const data = await response.json();
+      return {
+        totalArticles: Number(data.totalArticles || 0),
+        totalViews: Number(data.totalViews || 0),
+      };
+    } catch (error) {
+      console.warn("Analytics API failed; using local fallback:", error);
+      const articles = await this.fetchArticles();
+      return {
+        totalArticles: articles.length,
+        totalViews: this.getLocalViewEvents().length,
+      };
+    }
+  }
+
+  async trackArticleView(articleId: string): Promise<void> {
+    if (!articleId) return;
+
+    this.recordLocalArticleView(articleId);
+    const notifyViewTracked = () => {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("paqtebi-article-view-tracked"));
+      }
+    };
+
+    try {
+      const response = await fetch("/api/analytics", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "view", articleId }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Analytics API failed: ${response.status}`);
+      }
+      notifyViewTracked();
+    } catch (error) {
+      console.warn("Article view tracking failed:", error);
+      notifyViewTracked();
+    }
   }
 
   private getLocalAdInquiries(): AdInquiry[] {
@@ -397,6 +469,7 @@ class RemoteApiService {
       try {
         const stored = localStorage.getItem(this.COMMENT_STORAGE_KEY);
         let comments: Comment[] = stored ? JSON.parse(stored) : [];
+        comments = comments.filter((comment) => comment.author !== this.VIEW_EVENT_AUTHOR);
 
         if (articleId) {
           comments = comments.filter((c) => c.articleId === articleId);
@@ -443,7 +516,7 @@ class RemoteApiService {
         throw new Error(`Error fetching comments: ${error.message}`);
       }
 
-      const rows = data || [];
+      const rows = (data || []).filter((row: any) => !this.isAnalyticsCommentRow(row));
       const articleIds = [...new Set(rows.map((row: any) => row.article_id).filter(Boolean))];
       const titleByArticleId = new Map<string, string>();
 
