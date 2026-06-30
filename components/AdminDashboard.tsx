@@ -71,7 +71,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const navigate = useNavigate();
   const { articles, refreshLocalOnly, addArticle, updateArticle, removeArticle } = useArticlesContext();
   const { breakingNews, addTickerItem, removeTickerItem } = useBreakingNews();
-  const { comments, removeComment } = useComments();
+  const { comments, removeComment, refreshComments } = useComments();
   const { addToast } = useToast();
 
   const [activeTab, setActiveTab] = useState<Tab>('ANALYTICS');
@@ -146,6 +146,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       refreshAdmins();
     }
   }, [activeTab, isOwner]);
+
+  useEffect(() => {
+    if (activeTab === 'COMMENTS' || activeTab === 'ANALYTICS') {
+      refreshComments();
+    }
+  }, [activeTab]);
 
   const handleCreateAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
