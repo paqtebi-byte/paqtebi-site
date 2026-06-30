@@ -169,6 +169,18 @@ class RemoteApiService {
     return data.comment || null;
   }
 
+  private async deleteCommentViaApi(id: string): Promise<boolean> {
+    const response = await fetch(`/api/comments?id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Comment API failed: ${response.status}`);
+    }
+
+    return true;
+  }
+
   private getLocalAdInquiries(): AdInquiry[] {
     const stored = localStorage.getItem(this.AD_INQUIRIES_STORAGE_KEY);
     return stored ? JSON.parse(stored) : [];
@@ -406,8 +418,14 @@ class RemoteApiService {
       }
     }
 
-    // Use Supabase. Keep this query independent from FK relationship names so
-    // comments still load when the database relation is named differently.
+    try {
+      return await this.fetchCommentsFromApi(articleId);
+    } catch (apiError) {
+      console.warn("Comment API fetch failed; falling back to Supabase client:", apiError);
+    }
+
+    // Use Supabase as a fallback. Keep this query independent from FK relationship
+    // names so comments still load when the database relation is named differently.
     try {
       let query = this.supabase!
         .from(DATABASE_CONFIG.TABLES.COMMENTS)
@@ -494,6 +512,13 @@ class RemoteApiService {
 
     // Use Supabase — resolve articleTitle with a targeted single-row query instead of fetchArticles()
     try {
+      const saved = await this.insertCommentViaApi(comment);
+      if (saved) return saved;
+    } catch (apiError) {
+      console.warn("Comment API insert failed; falling back to Supabase client:", apiError);
+    }
+
+    try {
       const insertPayload = {
         article_id: comment.articleId,
         author: comment.author,
@@ -524,12 +549,7 @@ class RemoteApiService {
       return newComment;
     } catch (error) {
       console.error("Error in insertComment:", error);
-      try {
-        return await this.insertCommentViaApi(comment);
-      } catch (apiError) {
-        console.error("Error inserting comment through API fallback:", apiError);
-        return null;
-      }
+      return null;
     }
   }
 
@@ -552,7 +572,13 @@ class RemoteApiService {
       }
     }
 
-    // Use Supabase
+    try {
+      return await this.deleteCommentViaApi(id);
+    } catch (apiError) {
+      console.warn("Comment API delete failed; falling back to Supabase client:", apiError);
+    }
+
+    // Use Supabase as a fallback.
     try {
       const { error } = await this.supabase!
         .from(DATABASE_CONFIG.TABLES.COMMENTS)
