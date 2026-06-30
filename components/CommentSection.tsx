@@ -6,6 +6,11 @@ import { useComments } from '../hooks/useComments';
 import { sanitizeInput } from '../utils/security';
 import { formatDayMonthYear } from '../utils/dateFormat';
 
+const COMMENT_SAVE_SUCCESS = '\u10d9\u10dd\u10db\u10d4\u10dc\u10e2\u10d0\u10e0\u10d8 \u10d3\u10d0\u10d4\u10db\u10d0\u10e2\u10d0';
+const COMMENT_SAVE_ERROR = '\u10d9\u10dd\u10db\u10d4\u10dc\u10e2\u10d0\u10e0\u10d8\u10e1 \u10d2\u10d0\u10d2\u10d6\u10d0\u10d5\u10dc\u10d0 \u10d5\u10d4\u10e0 \u10db\u10dd\u10ee\u10d4\u10e0\u10ee\u10d3\u10d0';
+const COMMENT_DELETE_ERROR = '\u10d9\u10dd\u10db\u10d4\u10dc\u10e2\u10d0\u10e0\u10d8\u10e1 \u10ec\u10d0\u10e8\u10da\u10d0 \u10d5\u10d4\u10e0 \u10db\u10dd\u10ee\u10d4\u10e0\u10ee\u10d3\u10d0';
+const REACTION_SAVE_ERROR = '\u10e0\u10d4\u10d0\u10e5\u10ea\u10d8\u10d8\u10e1 \u10e8\u10d4\u10dc\u10d0\u10ee\u10d5\u10d0 \u10d5\u10d4\u10e0 \u10db\u10dd\u10ee\u10d4\u10e0\u10ee\u10d3\u10d0';
+
 interface CommentSectionProps {
   articleId: string;
   articleTitle: string;
@@ -50,12 +55,12 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
       setNewComment('');
     } catch (error) {
       console.error('[CommentSection] submit error:', error);
-      addToast('áƒ™áƒáƒ›áƒ”áƒœáƒ¢áƒáƒ áƒ˜áƒ¡ áƒ’áƒáƒ’áƒ–áƒáƒ•áƒœáƒ áƒ•áƒ”áƒ  áƒ›áƒáƒ®áƒ”áƒ áƒ®áƒ“áƒ', 'error');
+      addToast(COMMENT_SAVE_ERROR, 'error');
       setIsSubmitting(false);
       return;
     }
     setIsSubmitting(false);
-    addToast('კომენტარი დაემატა', 'success');
+    addToast(COMMENT_SAVE_SUCCESS, 'success');
   };
 
   return (
@@ -148,7 +153,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                           if (window.confirm('წავშალოთ კომენტარი?')) {
                             removeComment(comment.id).catch((error) => {
                               console.error('[CommentSection] delete error:', error);
-                              addToast('კომენტარის წაშლა ვერ მოხერხდა', 'error');
+                              addToast(COMMENT_DELETE_ERROR, 'error');
                             });
                           }
                         }}
@@ -172,7 +177,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                           }
                           addReaction(comment.id, label).catch((error) => {
                             console.error('[CommentSection] reaction error:', error);
-                            addToast('რეაქციის შენახვა ვერ მოხერხდა', 'error');
+                            addToast(REACTION_SAVE_ERROR, 'error');
                           });
                         }}
                         className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-1.5 text-xs font-bold text-gray-600 dark:text-gray-300 transition-colors hover:border-news-accent hover:text-news-accent"
