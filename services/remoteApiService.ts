@@ -138,6 +138,37 @@ class RemoteApiService {
     };
   }
 
+  private async fetchCommentsFromApi(articleId?: string): Promise<Comment[]> {
+    const query = articleId ? `?articleId=${encodeURIComponent(articleId)}` : "";
+    const response = await fetch(`/api/comments${query}`);
+    if (!response.ok) {
+      throw new Error(`Comment API failed: ${response.status}`);
+    }
+    const data = await response.json();
+    return data.comments || [];
+  }
+
+  private async insertCommentViaApi(
+    comment: Omit<Comment, "id" | "timestamp">,
+  ): Promise<Comment | null> {
+    const response = await fetch("/api/comments", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        articleId: comment.articleId,
+        author: comment.author,
+        text: comment.text,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Comment API failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.comment || null;
+  }
+
   private getLocalAdInquiries(): AdInquiry[] {
     const stored = localStorage.getItem(this.AD_INQUIRIES_STORAGE_KEY);
     return stored ? JSON.parse(stored) : [];
@@ -418,7 +449,12 @@ class RemoteApiService {
       );
     } catch (error) {
       console.error("Error in fetchComments:", error);
-      return [];
+      try {
+        return await this.fetchCommentsFromApi(articleId);
+      } catch (apiError) {
+        console.error("Error fetching comments from API fallback:", apiError);
+        return [];
+      }
     }
   }
 
@@ -488,7 +524,12 @@ class RemoteApiService {
       return newComment;
     } catch (error) {
       console.error("Error in insertComment:", error);
-      return null;
+      try {
+        return await this.insertCommentViaApi(comment);
+      } catch (apiError) {
+        console.error("Error inserting comment through API fallback:", apiError);
+        return null;
+      }
     }
   }
 
