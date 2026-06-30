@@ -1,5 +1,5 @@
 import RemoteApiService from "./remoteApiService";
-import { AdInquiry, AdPlacement, Article, Comment, BreakingNewsItem, User } from "../types";
+import { AdInquiry, AdPlacement, Article, Comment, BreakingNewsItem, User, AnalyticsData } from "../types";
 
 /**
  * Service class for handling all API/database operations
@@ -116,6 +116,14 @@ class ApiService {
    */
   async addReaction(id: string, reaction: string): Promise<boolean> {
     return RemoteApiService.addReaction(id, reaction);
+  }
+
+  async fetchAnalytics(): Promise<Pick<AnalyticsData, "totalArticles" | "totalViews">> {
+    return RemoteApiService.fetchAnalytics();
+  }
+
+  async trackArticleView(articleId: string): Promise<void> {
+    return RemoteApiService.trackArticleView(articleId);
   }
 
   /**

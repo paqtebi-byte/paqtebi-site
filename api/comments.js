@@ -22,6 +22,13 @@ function getConfig() {
   return { supabaseUrl, serviceKey };
 }
 
+const VIEW_EVENT_AUTHOR = "__paqtebi_view__";
+const VIEW_EVENT_MARKER = /^\[\[paqtebi-view:/;
+
+function isAnalyticsComment(row) {
+  return row?.author === VIEW_EVENT_AUTHOR || VIEW_EVENT_MARKER.test(String(row?.text || ""));
+}
+
 async function supabaseRequest(path, options = {}) {
   const { supabaseUrl, serviceKey } = getConfig();
   if (!supabaseUrl || !serviceKey) {
@@ -111,7 +118,7 @@ export default async function handler(request, response) {
         "comments?select=id,article_id,author,text,created_at&order=created_at.desc&limit=200",
         { method: "GET" },
       );
-      const mappedRows = (rows || []).map((row) => {
+      const mappedRows = (rows || []).filter((row) => !isAnalyticsComment(row)).map((row) => {
         const stored = decodeStoredCommentText(row.text);
         return { ...row, resolved_article_id: stored.articleId || String(row.article_id ?? "") };
       });
@@ -137,6 +144,11 @@ export default async function handler(request, response) {
 
       if (!articleId || !author || !text) {
         json(response, 400, { error: "Missing required comment fields" });
+        return;
+      }
+
+      if (author === VIEW_EVENT_AUTHOR) {
+        json(response, 400, { error: "Reserved comment author" });
         return;
       }
 

@@ -9,6 +9,7 @@ import { normalizeArticleHtml } from '../utils/articleHtml';
 import { formatDayMonthYear } from '../utils/dateFormat';
 import { summarizeArticle } from '../services/geminiService';
 import { Sparkles, Loader2 } from 'lucide-react';
+import apiService from '../services/apiService';
 
 interface ArticleDetailProps {
   article: Article;
@@ -87,6 +88,10 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
     } catch {
       setArticleReactions({ like: 0, dislike: 0 });
     }
+  }, [article.id]);
+
+  useEffect(() => {
+    apiService.trackArticleView(article.id);
   }, [article.id]);
 
   // Calculate read time (approx 200 words per minute)
