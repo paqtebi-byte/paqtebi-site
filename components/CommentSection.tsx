@@ -30,23 +30,31 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   const { addToast } = useToast();
   const { comments, addComment, removeComment, addReaction } = useComments(articleId);
   const [newComment, setNewComment] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newComment.trim() || !currentUser) return;
+    if (!newComment.trim() || !currentUser || isSubmitting) return;
 
     const cleanText = sanitizeInput(newComment);
-    const comment: Comment = {
-      id: Date.now().toString(),
+    const comment: Omit<Comment, 'id' | 'timestamp'> = {
       articleId,
       articleTitle,
       author: currentUser.username,
       text: cleanText,
-      timestamp: Date.now(),
     };
 
-    addComment(comment);
-    setNewComment('');
+    setIsSubmitting(true);
+    try {
+      await addComment(comment);
+      setNewComment('');
+    } catch (error) {
+      console.error('[CommentSection] submit error:', error);
+      addToast('áƒ™áƒáƒ›áƒ”áƒœáƒ¢áƒáƒ áƒ˜áƒ¡ áƒ’áƒáƒ’áƒ–áƒáƒ•áƒœáƒ áƒ•áƒ”áƒ  áƒ›áƒáƒ®áƒ”áƒ áƒ®áƒ“áƒ', 'error');
+      setIsSubmitting(false);
+      return;
+    }
+    setIsSubmitting(false);
     addToast('კომენტარი დაემატა', 'success');
   };
 
@@ -86,7 +94,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
           <div className="mt-3 flex justify-end">
             <button
               type="submit"
-              disabled={!newComment.trim()}
+              disabled={!newComment.trim() || isSubmitting}
               className="inline-flex items-center gap-2 rounded-sm bg-news-accent px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Send size={16} />
@@ -137,7 +145,12 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                     {(isAdmin || currentUser?.username === comment.author) && (
                       <button
                         onClick={() => {
-                          if (window.confirm('წავშალოთ კომენტარი?')) removeComment(comment.id);
+                          if (window.confirm('წავშალოთ კომენტარი?')) {
+                            removeComment(comment.id).catch((error) => {
+                              console.error('[CommentSection] delete error:', error);
+                              addToast('კომენტარის წაშლა ვერ მოხერხდა', 'error');
+                            });
+                          }
                         }}
                         className="rounded-sm p-2 text-gray-400 opacity-0 transition-all hover:bg-red-50 hover:text-news-accent group-hover:opacity-100 dark:hover:bg-red-950/20"
                         title="წაშლა"
@@ -157,7 +170,10 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                             onLoginRequest();
                             return;
                           }
-                          addReaction(comment.id, label);
+                          addReaction(comment.id, label).catch((error) => {
+                            console.error('[CommentSection] reaction error:', error);
+                            addToast('რეაქციის შენახვა ვერ მოხერხდა', 'error');
+                          });
                         }}
                         className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-1.5 text-xs font-bold text-gray-600 dark:text-gray-300 transition-colors hover:border-news-accent hover:text-news-accent"
                         title={title}

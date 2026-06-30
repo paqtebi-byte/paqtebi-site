@@ -124,6 +124,20 @@ class RemoteApiService {
     };
   }
 
+  private mapCommentFromDb(row: any, articleTitle?: string): Comment {
+    const createdAt = row.created_at ? Date.parse(row.created_at) : Date.now();
+
+    return {
+      id: row.id,
+      articleId: row.article_id,
+      author: row.author,
+      text: row.text,
+      timestamp: Number(row.timestamp ?? createdAt),
+      reactions: row.reactions ?? {},
+      articleTitle,
+    };
+  }
+
   private getLocalAdInquiries(): AdInquiry[] {
     const stored = localStorage.getItem(this.AD_INQUIRIES_STORAGE_KEY);
     return stored ? JSON.parse(stored) : [];
@@ -361,15 +375,13 @@ class RemoteApiService {
       }
     }
 
-    // Use Supabase — join articles to resolve articleTitle in a single query
+    // Use Supabase. Keep this query independent from FK relationship names so
+    // comments still load when the database relation is named differently.
     try {
       let query = this.supabase!
         .from(DATABASE_CONFIG.TABLES.COMMENTS)
-        .select(
-          `id, article_id, author, text, timestamp, reactions,
-          articles:${DATABASE_CONFIG.TABLES.ARTICLES}!article_id ( title )`
-        )
-        .order("timestamp", { ascending: false })
+        .select("id, article_id, author, text, created_at")
+        .order("created_at", { ascending: false })
         .range(0, 49);
 
       if (articleId) {
@@ -382,15 +394,28 @@ class RemoteApiService {
         throw new Error(`Error fetching comments: ${error.message}`);
       }
 
-      return (data || []).map((row: any) => ({
-        id: row.id,
-        articleId: row.article_id,
-        author: row.author,
-        text: row.text,
-        timestamp: row.timestamp,
-        reactions: row.reactions,
-        articleTitle: row.articles?.title ?? undefined,
-      } as Comment));
+      const rows = data || [];
+      const articleIds = [...new Set(rows.map((row: any) => row.article_id).filter(Boolean))];
+      const titleByArticleId = new Map<string, string>();
+
+      if (articleIds.length > 0) {
+        const { data: articleRows, error: articleError } = await this.supabase!
+          .from(DATABASE_CONFIG.TABLES.ARTICLES)
+          .select("id, title")
+          .in("id", articleIds);
+
+        if (articleError) {
+          console.warn("Could not resolve comment article titles:", articleError.message);
+        } else {
+          (articleRows || []).forEach((article: any) => {
+            titleByArticleId.set(article.id, article.title);
+          });
+        }
+      }
+
+      return rows.map((row: any) =>
+        this.mapCommentFromDb(row, titleByArticleId.get(row.article_id))
+      );
     } catch (error) {
       console.error("Error in fetchComments:", error);
       return [];
@@ -437,34 +462,19 @@ class RemoteApiService {
         article_id: comment.articleId,
         author: comment.author,
         text: (comment as any).text,
-        timestamp: Date.now(),
       };
-      console.log("COMMENT INPUT:", comment);
-      console.log("INSERT PAYLOAD:", insertPayload);
 
-      const { data, error } = await (this.supabase!
+      const { data, error } = await this.supabase!
         .from(DATABASE_CONFIG.TABLES.COMMENTS)
-        .insert(insertPayload) as any)
-        .options({
-          headers: {
-            'Prefer': 'override=system_value'
-          }
-        })
-        .select("id, article_id, author, text, timestamp, reactions")
+        .insert(insertPayload)
+        .select("id, article_id, author, text, created_at")
         .single();
 
       if (error) {
         throw new Error(`Error inserting comment: ${error.message}`);
       }
 
-      const newComment: Comment = {
-        id: (data as any).id,
-        articleId: (data as any).article_id ?? comment.articleId,
-        author: (data as any).author,
-        text: (data as any).text,
-        timestamp: (data as any).timestamp,
-        reactions: (data as any).reactions,
-      };
+      const newComment = this.mapCommentFromDb(data);
 
       // Resolve articleTitle with a single targeted lookup — no full table scan
       const { data: articleRow } = await this.supabase!
