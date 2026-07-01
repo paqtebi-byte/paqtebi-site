@@ -229,6 +229,16 @@ class RemoteApiService {
   async trackArticleView(articleId: string): Promise<void> {
     if (!articleId) return;
 
+    if (typeof sessionStorage !== "undefined") {
+      const sessionKey = "paqtebi_session_views";
+      const viewedArticles = JSON.parse(sessionStorage.getItem(sessionKey) || "[]");
+      if (viewedArticles.includes(articleId)) {
+        return; // Already recorded in this session
+      }
+      viewedArticles.push(articleId);
+      sessionStorage.setItem(sessionKey, JSON.stringify(viewedArticles));
+    }
+
     this.recordLocalArticleView(articleId);
     const notifyViewTracked = () => {
       if (typeof window !== "undefined") {

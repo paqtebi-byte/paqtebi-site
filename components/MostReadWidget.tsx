@@ -8,30 +8,7 @@ interface MostReadWidgetProps {
   onArticleClick?: (article: Article) => void;
 }
 
-interface ViewEvent {
-  articleId: string;
-  timestamp: number;
-}
-
-const VIEW_STORAGE_KEY = 'paqtebi_article_views';
-const DAY_IN_MS = 24 * 60 * 60 * 1000;
-
-const getViewsForLastDay = (): Record<string, number> => {
-  try {
-    const raw = localStorage.getItem(VIEW_STORAGE_KEY);
-    const events: ViewEvent[] = raw ? JSON.parse(raw) : [];
-    const cutoff = Date.now() - DAY_IN_MS;
-
-    return events.reduce<Record<string, number>>((acc, event) => {
-      if (event.timestamp >= cutoff) {
-        acc[event.articleId] = (acc[event.articleId] || 0) + 1;
-      }
-      return acc;
-    }, {});
-  } catch {
-    return {};
-  }
-};
+import { getViewsForLastDay } from '../utils/viewUtils';
 
 export const MostReadWidget: React.FC<MostReadWidgetProps> = ({ articles = [], onArticleClick }) => {
   const rankedArticles = useMemo(() => {
