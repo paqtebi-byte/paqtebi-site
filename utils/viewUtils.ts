@@ -26,10 +26,5 @@ export const getViewsForLastDay = (): Record<string, number> => {
 
 export const getArticleViewCount = (articleId: string): number => {
   const views = getViewsForLastDay();
-  // Using a hash on articleId to generate a fake "base" view count 
-  // so articles don't show 0 views, just like MostReadWidget adds fallback views.
-  const hash = articleId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const baseViews = (hash % 50) + 12; // Some number between 12 and 61
-  
-  return baseViews + (views[articleId] || 0);
+  return views[articleId] || 0;
 };
