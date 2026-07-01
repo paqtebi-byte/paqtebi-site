@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Copy } from 'lucide-react';
+import { generateDynamicHoroscope } from '../utils/horoscopeUtils';
 
 type HoroscopeMode = 'დღე' | 'კვირა';
 
@@ -95,7 +96,9 @@ export const ZodiacWidget: React.FC = () => {
   const [mode, setMode] = useState<HoroscopeMode>('დღე');
 
   const selectedSign = selectedSignName ? SIGNS.find((sign) => sign.name === selectedSignName) : null;
-  const horoscopeText = selectedSign ? (mode === 'დღე' ? selectedSign.daily : selectedSign.weekly) : '';
+  const horoscopeText = selectedSign 
+    ? generateDynamicHoroscope(selectedSign.name, mode === 'დღე' ? 'daily' : 'weekly')
+    : '';
 
   const generatedDate = useMemo(() => {
     return new Date().toLocaleDateString('ka-GE', {
