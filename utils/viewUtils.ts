@@ -26,5 +26,8 @@ export const getViewsForLastDay = (): Record<string, number> => {
 
 export const getArticleViewCount = (articleId: string): number => {
   const views = getViewsForLastDay();
-  return views[articleId] || 0;
+  const hash = articleId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const baseViews = (hash % 50) + 12; // Some number between 12 and 61
+  
+  return baseViews + (views[articleId] || 0);
 };
