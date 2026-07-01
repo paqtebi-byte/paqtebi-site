@@ -12,6 +12,7 @@ import { LinkedText } from "./components/LinkedText";
 import { ArticleExcerpt } from "./components/ArticleExcerpt";
 import { stripHtmlToText } from "./utils/articleHtml";
 import { formatDayMonthYear } from "./utils/dateFormat";
+import { getArticleViewCount } from "./utils/viewUtils";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { NotFound } from "./components/NotFound";
@@ -30,6 +31,7 @@ import {
   Heart,
   Clock,
   TrendingUp,
+  Eye,
 } from "lucide-react";
 import { NAV_ITEMS, FEED_CATEGORIES } from "./config";
 import { ToastProvider } from "./context/ToastContext";
@@ -582,6 +584,15 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
                       {formatDayMonthYear(heroArticle.date)}
                     </span>
                   )}
+                  {heroArticle?.id && (
+                    <>
+                      <span className="text-gray-300 text-xs flex items-center gap-1">•</span>
+                      <span className="text-gray-300 text-xs flex items-center gap-1">
+                        <Eye size={11} />
+                        {getArticleViewCount(heroArticle.id)} ნახვა
+                      </span>
+                    </>
+                  )}
                 </div>
                 <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-white leading-snug font-serif mb-4 tracking-normal">
                   {heroArticle?.title || "თანამედროვე სამყაროს გლობალური გამოწვევები და ახალი პერსპექტივები"}
@@ -789,6 +800,11 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
                               <span>{article.author}</span>
                             </>
                           )}
+                          <span>•</span>
+                          <span className="flex items-center gap-1">
+                            <Eye size={11} />
+                            {getArticleViewCount(article.id)} ნახვა
+                          </span>
                         </div>
                         <h2 className="text-base font-bold leading-snug text-news-black dark:text-white mb-2.5 group-hover:text-news-accent transition-colors line-clamp-2 font-serif">
                           {article.title}

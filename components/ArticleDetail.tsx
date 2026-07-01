@@ -1,12 +1,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { Article, User as UserType } from '../types';
-import { ArrowLeft, Clock, Tag, User, Facebook, Twitter, Link as LinkIcon, BookOpen, ZoomIn, ZoomOut, ArrowRight, Heart, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown, MessageCircle, Share2, Copy, Send, Mail, Instagram, Youtube, Music2 } from 'lucide-react';
+import { ArrowLeft, Clock, Tag, User, Facebook, Twitter, Link as LinkIcon, BookOpen, ZoomIn, ZoomOut, ArrowRight, Heart, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown, MessageCircle, Share2, Copy, Send, Mail, Instagram, Youtube, Music2, Eye } from 'lucide-react';
 import { CommentSection } from './CommentSection';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { LazyImage } from './LazyImage';
 import { normalizeArticleHtml } from '../utils/articleHtml';
 import { formatDayMonthYear } from '../utils/dateFormat';
+import { getArticleViewCount } from '../utils/viewUtils';
 import { summarizeArticle } from '../services/geminiService';
 import { Sparkles, Loader2 } from 'lucide-react';
 import apiService from '../services/apiService';
@@ -247,6 +248,10 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
                 <div className="flex items-center gap-2">
                     <Clock size={16} aria-hidden="true" />
                     <span>{formatDayMonthYear(article.date)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Eye size={16} aria-hidden="true" />
+                    <span>{getArticleViewCount(article.id)} ნახვა</span>
                 </div>
              </div>
           </div>
