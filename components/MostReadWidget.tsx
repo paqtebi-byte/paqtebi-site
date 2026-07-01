@@ -8,17 +8,15 @@ interface MostReadWidgetProps {
   onArticleClick?: (article: Article) => void;
 }
 
-import { getViewsForLastDay } from '../utils/viewUtils';
+import { getArticleViewCount } from '../utils/viewUtils';
 
 export const MostReadWidget: React.FC<MostReadWidgetProps> = ({ articles = [], onArticleClick }) => {
   const rankedArticles = useMemo(() => {
-    const viewCounts = getViewsForLastDay();
-
     return articles
       .filter((article) => (article.contentType || 'article') === 'article' && article.layout !== 'hero')
-      .map((article, index) => ({
+      .map((article) => ({
         article,
-        views: viewCounts[article.id] || Math.max(1, 9 - index),
+        views: getArticleViewCount(article.id),
       }))
       .sort((a, b) => b.views - a.views)
       .slice(0, 4);
