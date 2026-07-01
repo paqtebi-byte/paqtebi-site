@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { BarChart3, Clock, Eye, TrendingUp } from 'lucide-react';
 import { Article } from '../types';
 import { LazyImage } from './LazyImage';
@@ -11,6 +11,18 @@ interface MostReadWidgetProps {
 import { getArticleViewCount } from '../utils/viewUtils';
 
 export const MostReadWidget: React.FC<MostReadWidgetProps> = ({ articles = [], onArticleClick }) => {
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  useEffect(() => {
+    const handleViewTracked = () => {
+      setRefreshTick(t => t + 1);
+    };
+    window.addEventListener('paqtebi-article-view-tracked', handleViewTracked);
+    return () => {
+      window.removeEventListener('paqtebi-article-view-tracked', handleViewTracked);
+    };
+  }, []);
+
   const rankedArticles = useMemo(() => {
     return articles
       .filter((article) => (article.contentType || 'article') === 'article' && article.layout !== 'hero')
@@ -20,7 +32,7 @@ export const MostReadWidget: React.FC<MostReadWidgetProps> = ({ articles = [], o
       }))
       .sort((a, b) => b.views - a.views)
       .slice(0, 4);
-  }, [articles]);
+  }, [articles, refreshTick]);
 
   if (rankedArticles.length === 0) return null;
 
