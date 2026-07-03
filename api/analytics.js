@@ -29,6 +29,19 @@ function encodeViewText(articleId) {
   return `[[paqtebi-view:${encodedArticleId}]]`;
 }
 
+function decodeViewArticleId(row) {
+  if (row?.article_id) return String(row.article_id);
+
+  const marker = String(row?.text || "").match(/^\[\[paqtebi-view:([A-Za-z0-9_-]+)\]\]/);
+  if (!marker) return "";
+
+  try {
+    return Buffer.from(marker[1], "base64url").toString("utf8");
+  } catch {
+    return "";
+  }
+}
+
 async function supabaseRequest(path, options = {}) {
   const { supabaseUrl, serviceKey } = getConfig();
   if (!supabaseUrl || !serviceKey) {
@@ -74,9 +87,39 @@ async function getExactCount(path) {
   return parseTotalCount(headers);
 }
 
+async function getArticleViewCounts(articleIds = []) {
+  const { data } = await supabaseRequest(
+    "comments?select=id,article_id,text&author=eq.__paqtebi_view__&limit=10000",
+    { method: "GET" },
+  );
+  const requestedIds = new Set(articleIds.filter(Boolean));
+
+  return (data || []).reduce((counts, row) => {
+    const articleId = decodeViewArticleId(row);
+    if (!articleId || (requestedIds.size > 0 && !requestedIds.has(articleId))) {
+      return counts;
+    }
+
+    counts[articleId] = (counts[articleId] || 0) + 1;
+    return counts;
+  }, {});
+}
+
 export default async function handler(request, response) {
   try {
     if (request.method === "GET") {
+      const url = new URL(request.url, "http://localhost");
+      const articleIds = String(url.searchParams.get("articleIds") || "")
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+
+      if (articleIds.length > 0 || url.searchParams.get("scope") === "articleCounts") {
+        const viewCounts = await getArticleViewCounts(articleIds);
+        json(response, 200, { viewCounts });
+        return;
+      }
+
       const [totalArticles, totalViews] = await Promise.all([
         getExactCount("articles?select=id&is_archived=eq.false"),
         getExactCount(`comments?select=id&author=eq.${encodeURIComponent(VIEW_EVENT_AUTHOR)}`),
@@ -96,16 +139,39 @@ export default async function handler(request, response) {
         return;
       }
 
-      const { data } = await supabaseRequest("comments?select=id", {
-        method: "POST",
-        headers: { Prefer: "return=representation" },
-        body: JSON.stringify({
-          author: VIEW_EVENT_AUTHOR,
-          text: encodeViewText(articleId),
-        }),
-      });
+      let data;
+      try {
+        ({ data } = await supabaseRequest("comments?select=id,article_id,text", {
+          method: "POST",
+          headers: { Prefer: "return=representation, override=system_value" },
+          body: JSON.stringify({
+            article_id: articleId,
+            author: VIEW_EVENT_AUTHOR,
+            text: encodeViewText(articleId),
+          }),
+        }));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "";
+        if (!message.includes("article_id")) throw error;
 
-      json(response, 200, { success: true, id: data?.[0]?.id || null });
+        ({ data } = await supabaseRequest("comments?select=id,article_id,text", {
+          method: "POST",
+          headers: { Prefer: "return=representation" },
+          body: JSON.stringify({
+            author: VIEW_EVENT_AUTHOR,
+            text: encodeViewText(articleId),
+          }),
+        }));
+      }
+
+      const viewCounts = await getArticleViewCounts([articleId]);
+
+      json(response, 200, {
+        success: true,
+        id: data?.[0]?.id || null,
+        articleId,
+        viewCount: viewCounts[articleId] || 0,
+      });
       return;
     }
 

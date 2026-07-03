@@ -8,6 +8,7 @@ export interface Article {
   category_slug?: string;
   date: string;
   imageUrl: string;
+  viewCount?: number;
   layout?: 'hero' | 'standard' | 'sidebar'; // Where to display the article
 
   // ვიდეო/ლაივ სტრიმინგის დამატებითი ველები

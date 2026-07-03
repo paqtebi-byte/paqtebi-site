@@ -575,7 +575,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
                       <span className="text-gray-300 text-xs flex items-center gap-1">•</span>
                       <span className="text-gray-300 text-xs flex items-center gap-1">
                         <Eye size={11} />
-                        {getArticleViewCount(heroArticle.id)} ნახვა
+                        {getArticleViewCount(heroArticle)} ნახვა
                       </span>
                     </>
                   )}
@@ -789,7 +789,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
                           <span>•</span>
                           <span className="flex items-center gap-1">
                             <Eye size={11} />
-                            {getArticleViewCount(article.id)} ნახვა
+                            {getArticleViewCount(article)} ნახვა
                           </span>
                         </div>
                         <h2 className="text-base font-bold leading-snug text-news-black dark:text-white mb-2.5 group-hover:text-news-accent transition-colors line-clamp-2 font-serif">

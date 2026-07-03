@@ -6,6 +6,21 @@ type ArticleCacheKey = NonNullable<Article["contentType"]> | "all";
 
 const articleCache: Partial<Record<ArticleCacheKey, Article[]>> = {};
 
+const applyViewCountUpdate = (
+  articles: Article[],
+  articleId: string,
+  viewCount?: number,
+) => articles.map((article) => {
+  if (article.id !== articleId) return article;
+
+  return {
+    ...article,
+    viewCount: Number.isFinite(Number(viewCount))
+      ? Number(viewCount)
+      : Number(article.viewCount || 0) + 1,
+  };
+});
+
 export const useArticles = () => {
   const [articles, setArticles] = useState<Article[]>(() => articleCache.all ?? []);
   const [loading, setLoading] = useState<boolean>(() => !articleCache.all);
@@ -40,6 +55,29 @@ export const useArticles = () => {
 
   const loadAllNews = useCallback(() => loadNews("all"), [loadNews]);
   const loadArticleNews = useCallback(() => loadNews("article"), [loadNews]);
+
+  useEffect(() => {
+    const handleViewTracked = (event: Event) => {
+      const detail = (event as CustomEvent<{ articleId?: string; viewCount?: number }>).detail;
+      const articleId = detail?.articleId;
+      if (!articleId) return;
+
+      Object.keys(articleCache).forEach((key) => {
+        const cacheKey = key as ArticleCacheKey;
+        const cachedArticles = articleCache[cacheKey];
+        if (cachedArticles) {
+          articleCache[cacheKey] = applyViewCountUpdate(cachedArticles, articleId, detail.viewCount);
+        }
+      });
+
+      setArticles((currentArticles) => applyViewCountUpdate(currentArticles, articleId, detail.viewCount));
+    };
+
+    window.addEventListener("paqtebi-article-view-tracked", handleViewTracked);
+    return () => {
+      window.removeEventListener("paqtebi-article-view-tracked", handleViewTracked);
+    };
+  }, []);
 
   const refreshLocalOnly = async () => {
     const localNews = await apiService.fetchArticles();

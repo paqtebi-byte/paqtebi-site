@@ -36,6 +36,7 @@ class RemoteApiService {
       isLive: row.isLive ?? row.is_live ?? false,
       liveStatus: row.liveStatus ?? row.live_status ?? undefined,
       scheduledAt: row.scheduledAt ?? row.scheduled_at ?? undefined,
+      viewCount: Number(row.viewCount ?? row.view_count ?? 0),
     } as Article;
   }
 
@@ -206,6 +207,47 @@ class RemoteApiService {
     }
   }
 
+  private getLocalArticleViewCounts(articleIds: string[] = []): Record<string, number> {
+    const requestedIds = new Set(articleIds);
+    return this.getLocalViewEvents().reduce<Record<string, number>>((counts, event) => {
+      if (!event.articleId || (requestedIds.size > 0 && !requestedIds.has(event.articleId))) {
+        return counts;
+      }
+
+      counts[event.articleId] = (counts[event.articleId] || 0) + 1;
+      return counts;
+    }, {});
+  }
+
+  private async fetchArticleViewCounts(articleIds: string[]): Promise<Record<string, number>> {
+    if (articleIds.length === 0) return {};
+
+    if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
+      return this.getLocalArticleViewCounts(articleIds);
+    }
+
+    try {
+      const response = await fetch(`/api/analytics?articleIds=${encodeURIComponent(articleIds.join(","))}`);
+      if (!response.ok) throw new Error(`Analytics API failed: ${response.status}`);
+
+      const data = await response.json();
+      return data.viewCounts || {};
+    } catch (error) {
+      console.warn("Article view count fetch failed; using local fallback:", error);
+      return this.getLocalArticleViewCounts(articleIds);
+    }
+  }
+
+  private async attachArticleViewCounts(articles: Article[]): Promise<Article[]> {
+    const articleIds = articles.map((article) => article.id).filter(Boolean);
+    const viewCounts = await this.fetchArticleViewCounts(articleIds);
+
+    return articles.map((article) => ({
+      ...article,
+      viewCount: Number(viewCounts[article.id] || 0),
+    }));
+  }
+
   async fetchAnalytics(): Promise<Pick<AnalyticsData, "totalArticles" | "totalViews">> {
     try {
       const response = await fetch("/api/analytics");
@@ -226,23 +268,25 @@ class RemoteApiService {
     }
   }
 
-  async trackArticleView(articleId: string): Promise<void> {
-    if (!articleId) return;
+  async trackArticleView(articleId: string): Promise<number | null> {
+    if (!articleId) return null;
 
     if (typeof sessionStorage !== "undefined") {
-      const sessionKey = "paqtebi_session_views";
-      const viewedArticles = JSON.parse(sessionStorage.getItem(sessionKey) || "[]");
-      if (viewedArticles.includes(articleId)) {
-        return; // Already recorded in this session
+      const recentKey = `paqtebi_recent_view_${articleId}`;
+      const lastTrackedAt = Number(sessionStorage.getItem(recentKey) || 0);
+      const now = Date.now();
+      if (now - lastTrackedAt < 1500) {
+        return null;
       }
-      viewedArticles.push(articleId);
-      sessionStorage.setItem(sessionKey, JSON.stringify(viewedArticles));
+      sessionStorage.setItem(recentKey, String(now));
     }
 
     this.recordLocalArticleView(articleId);
-    const notifyViewTracked = () => {
+    const notifyViewTracked = (viewCount?: number) => {
       if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("paqtebi-article-view-tracked"));
+        window.dispatchEvent(new CustomEvent("paqtebi-article-view-tracked", {
+          detail: { articleId, viewCount },
+        }));
       }
     };
 
@@ -256,10 +300,14 @@ class RemoteApiService {
       if (!response.ok) {
         throw new Error(`Analytics API failed: ${response.status}`);
       }
-      notifyViewTracked();
+      const data = await response.json();
+      const viewCount = Number.isFinite(Number(data.viewCount)) ? Number(data.viewCount) : null;
+      notifyViewTracked(viewCount ?? undefined);
+      return viewCount;
     } catch (error) {
       console.warn("Article view tracking failed:", error);
       notifyViewTracked();
+      return null;
     }
   }
 
@@ -276,8 +324,10 @@ class RemoteApiService {
       try {
         const stored = localStorage.getItem(this.LOCAL_STORAGE_KEY);
         const articles = stored ? JSON.parse(stored) : [];
-        if (contentType === "all") return articles;
-        return articles.filter((article: Article) => (article.contentType || "article") === contentType);
+        const filteredArticles = contentType === "all"
+          ? articles
+          : articles.filter((article: Article) => (article.contentType || "article") === contentType);
+        return this.attachArticleViewCounts(filteredArticles);
       } catch (error) {
         console.error("Error fetching articles from localStorage:", error);
         return [];
@@ -307,7 +357,7 @@ class RemoteApiService {
         throw new Error(`Error fetching articles: ${error.message}`);
       }
 
-      return (data || []).map((row) => this.mapArticleFromDb(row));
+      return this.attachArticleViewCounts((data || []).map((row) => this.mapArticleFromDb(row)));
     } catch (error) {
       console.error("Error in fetchArticles:", error);
       return [];
@@ -335,7 +385,9 @@ class RemoteApiService {
         .maybeSingle();
 
       if (error) throw new Error(`Error fetching article: ${error.message}`);
-      return data ? this.mapArticleFromDb(data) : null;
+      if (!data) return null;
+      const [article] = await this.attachArticleViewCounts([this.mapArticleFromDb(data)]);
+      return article;
     } catch (error) {
       console.error("Error in fetchArticleById:", error);
       return null;

@@ -122,7 +122,8 @@ class ApiService {
     return RemoteApiService.fetchAnalytics();
   }
 
-  async trackArticleView(articleId: string): Promise<void> {
+  async trackArticleView(articleId: string): Promise<number | null> {
+    this.clearArticleCache();
     return RemoteApiService.trackArticleView(articleId);
   }
 

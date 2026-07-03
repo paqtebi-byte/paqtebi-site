@@ -41,6 +41,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const articleHtml = normalizeArticleHtml(article.content);
   const plainContent = articleHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  const [displayedViewCount, setDisplayedViewCount] = useState(() => getArticleViewCount(article));
 
   // Scroll to top when article changes and update Meta tags
   useEffect(() => {
@@ -92,7 +93,21 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
   }, [article.id]);
 
   useEffect(() => {
-    apiService.trackArticleView(article.id);
+    setDisplayedViewCount(getArticleViewCount(article));
+  }, [article.id, article.viewCount]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    apiService.trackArticleView(article.id).then((viewCount) => {
+      if (!cancelled && Number.isFinite(Number(viewCount))) {
+        setDisplayedViewCount(Number(viewCount));
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [article.id]);
 
   // Calculate read time (approx 200 words per minute)
@@ -251,7 +266,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
                 </div>
                 <div className="flex items-center gap-2">
                     <Eye size={16} aria-hidden="true" />
-                    <span>{getArticleViewCount(article.id)} ნახვა</span>
+                    <span>{displayedViewCount} ნახვა</span>
                 </div>
              </div>
           </div>
