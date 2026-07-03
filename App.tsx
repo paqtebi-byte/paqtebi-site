@@ -560,26 +560,6 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
           <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12 z-10">
             <div className="max-w-screen-xl mx-auto">
               <div className="max-w-3xl animate-fade-up">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="category-badge">
-                    {heroArticle?.category || "მთავარი"}
-                  </span>
-                  {heroArticle?.date && (
-                    <span className="text-gray-300 text-xs flex items-center gap-1">
-                      <Clock size={11} />
-                      {formatDayMonthYear(heroArticle.date)}
-                    </span>
-                  )}
-                  {heroArticle?.id && (
-                    <>
-                      <span className="text-gray-300 text-xs flex items-center gap-1">•</span>
-                      <span className="text-gray-300 text-xs flex items-center gap-1">
-                        <Eye size={11} />
-                        {getArticleViewCount(heroArticle)} ნახვა
-                      </span>
-                    </>
-                  )}
-                </div>
                 <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-white leading-snug font-serif mb-4 tracking-normal">
                   {heroArticle?.title || "თანამედროვე სამყაროს გლობალური გამოწვევები და ახალი პერსპექტივები"}
                 </h1>
