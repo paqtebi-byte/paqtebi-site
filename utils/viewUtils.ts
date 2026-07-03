@@ -13,8 +13,10 @@ export const getViewsForLastDay = (): Record<string, number> => {
     const events: ViewEvent[] = raw ? JSON.parse(raw) : [];
     const cutoff = Date.now() - DAY_IN_MS;
 
+    if (!Array.isArray(events)) return {};
+
     return events.reduce<Record<string, number>>((acc, event) => {
-      if (event.timestamp >= cutoff) {
+      if (event.articleId && Number(event.timestamp) >= cutoff) {
         acc[event.articleId] = (acc[event.articleId] || 0) + 1;
       }
       return acc;
@@ -26,8 +28,5 @@ export const getViewsForLastDay = (): Record<string, number> => {
 
 export const getArticleViewCount = (articleId: string): number => {
   const views = getViewsForLastDay();
-  const hash = articleId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const baseViews = (hash % 50) + 12; // Some number between 12 and 61
-  
-  return baseViews + (views[articleId] || 0);
+  return views[articleId] || 0;
 };

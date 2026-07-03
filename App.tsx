@@ -109,8 +109,6 @@ const preloadMenuRoute = (_itemIndex: number, _linkIndex: number, link: string) 
 
 const PRIMARY_FEED_CATEGORIES = FEED_CATEGORIES.slice(0, 6);
 const SECONDARY_FEED_CATEGORIES = FEED_CATEGORIES.slice(6);
-const ARTICLE_VIEW_STORAGE_KEY = 'paqtebi_article_views';
-const ARTICLE_VIEW_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 const getEffectiveSiteUser = (
   currentUser: User | null,
@@ -168,18 +166,6 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
   }, []);
 
   const handleArticleClick = useCallback((article: Article) => {
-    try {
-      const now = Date.now();
-      const raw = localStorage.getItem(ARTICLE_VIEW_STORAGE_KEY);
-      const events = raw ? JSON.parse(raw) : [];
-      const recentEvents = Array.isArray(events)
-        ? events.filter((event) => now - Number(event.timestamp) < ARTICLE_VIEW_WINDOW_MS)
-        : [];
-
-      recentEvents.push({ articleId: article.id, timestamp: now });
-      localStorage.setItem(ARTICLE_VIEW_STORAGE_KEY, JSON.stringify(recentEvents.slice(-300)));
-    } catch {}
-
     navigate(getContentRoute(article), { state: { article } });
     window.scrollTo(0, 0);
   }, [navigate]);

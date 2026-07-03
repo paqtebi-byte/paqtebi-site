@@ -30,6 +30,7 @@ export const MostReadWidget: React.FC<MostReadWidgetProps> = ({ articles = [], o
         article,
         views: getArticleViewCount(article.id),
       }))
+      .filter(({ views }) => views > 0)
       .sort((a, b) => b.views - a.views)
       .slice(0, 5);
   }, [articles, refreshTick]);
