@@ -1,3 +1,5 @@
+import type { Article } from '../types';
+
 export const VIEW_STORAGE_KEY = 'paqtebi_article_views';
 export const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
@@ -26,7 +28,12 @@ export const getViewsForLastDay = (): Record<string, number> => {
   }
 };
 
-export const getArticleViewCount = (articleId: string): number => {
+export const getArticleViewCount = (articleOrId: Article | string): number => {
+  if (typeof articleOrId !== 'string' && Number.isFinite(Number(articleOrId.viewCount))) {
+    return Number(articleOrId.viewCount);
+  }
+
+  const articleId = typeof articleOrId === 'string' ? articleOrId : articleOrId.id;
   const views = getViewsForLastDay();
   return views[articleId] || 0;
 };

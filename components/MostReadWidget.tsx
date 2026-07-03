@@ -28,7 +28,7 @@ export const MostReadWidget: React.FC<MostReadWidgetProps> = ({ articles = [], o
       .filter((article) => (article.contentType || 'article') === 'article' && article.layout !== 'hero')
       .map((article) => ({
         article,
-        views: getArticleViewCount(article.id),
+        views: getArticleViewCount(article),
       }))
       .filter(({ views }) => views > 0)
       .sort((a, b) => b.views - a.views)
