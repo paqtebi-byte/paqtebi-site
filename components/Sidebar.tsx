@@ -40,21 +40,27 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({ articles = [], cust
   const { addToast } = useToast();
 
   useEffect(() => {
+    const trackIfActive = (ad: typeof adPlacement) => {
+      if (ad.active && ad.imageUrl) {
+        // Only count ONE view per page session to avoid inflating counts on re-renders
+        const sessionKey = 'paqtebi_ad_view_counted';
+        if (!sessionStorage.getItem(sessionKey)) {
+          sessionStorage.setItem(sessionKey, '1');
+          apiService.trackAdView();
+        }
+      }
+    };
+
     const refreshAd = () => {
       adPlacementCache.data = null; // invalidate cache on storage event
       getCachedAdPlacement().then((ad) => {
         setAdPlacement(ad);
-        if (ad.active && ad.imageUrl) {
-          apiService.trackAdView();
-        }
       });
     };
 
     getCachedAdPlacement().then((ad) => {
       setAdPlacement(ad);
-      if (ad.active && ad.imageUrl) {
-        apiService.trackAdView();
-      }
+      trackIfActive(ad);
     });
 
     window.addEventListener('storage', refreshAd);

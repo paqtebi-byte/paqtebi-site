@@ -148,12 +148,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       }
     };
 
+    const refreshAdViews = () => {
+      apiService.fetchAdPlacement().then((ad) => {
+        setCurrentAd(prev => ({ ...prev, views: ad.views || 0 }));
+      });
+    };
+
+    // Also refresh views whenever ADS tab is opened
+    if (activeTab === 'ADS') {
+      refreshAdViews();
+    }
+
     window.addEventListener('storage', refreshAdInquiries);
     window.addEventListener('paqtebi-ad-inquiry-created', refreshAdInquiries);
+    window.addEventListener('paqtebi-ad-view-tracked', refreshAdViews);
 
     return () => {
       window.removeEventListener('storage', refreshAdInquiries);
       window.removeEventListener('paqtebi-ad-inquiry-created', refreshAdInquiries);
+      window.removeEventListener('paqtebi-ad-view-tracked', refreshAdViews);
     };
   }, [activeTab]);
 

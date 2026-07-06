@@ -175,6 +175,9 @@ export const trackAdView = (): void => {
   if (ad && ad.active && ad.imageUrl) {
     ad.views = (ad.views || 0) + 1;
     localStorage.setItem(STORAGE_KEY_AD_PLACEMENT, JSON.stringify(ad));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('paqtebi-ad-view-tracked', { detail: { views: ad.views } }));
+    }
   }
 };
 
