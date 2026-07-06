@@ -1262,9 +1262,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       <p className="text-xs text-gray-400 mt-0.5">მარჯვენა სვეტში 300 x 250 ბანერის მართვა</p>
                     </div>
                   </div>
-                  <span className={`badge ${currentAd.active ? 'badge-green' : 'bg-gray-100 text-gray-500'}`}>
-                    {currentAd.active ? 'აქტიური' : 'გამორთული'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="px-3 py-1 rounded-full bg-gray-100 text-xs font-bold text-gray-600 flex items-center gap-1">
+                      <Eye size={14} /> {currentAd.views || 0} ნახვა
+                    </div>
+                    <span className={`badge ${currentAd.active ? 'badge-green' : 'bg-gray-100 text-gray-500'}`}>
+                      {currentAd.active ? 'აქტიური' : 'გამორთული'}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="p-6 space-y-6">
@@ -1358,7 +1363,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 <div className="rounded-2xl p-5 text-center bg-gray-50 border border-dashed border-gray-200">
                   <span className="text-xs text-gray-400 uppercase tracking-widest block mb-3">რეკლამა</span>
                   {currentAd.active && currentAd.imageUrl ? (
-                    <div className="overflow-hidden rounded-xl bg-white border border-gray-200 shadow-sm">
+                    <div className="overflow-hidden rounded-xl bg-white border border-gray-200 shadow-sm text-left group">
+                      {currentAd.title && (
+                        <div className="bg-white border-b border-gray-100 p-3 text-left">
+                          <h4 className="text-sm font-bold text-gray-800">{currentAd.title}</h4>
+                        </div>
+                      )}
                       <img src={currentAd.imageUrl} alt={currentAd.title || 'რეკლამა'} className="aspect-[6/5] w-full object-cover" />
                     </div>
                   ) : (

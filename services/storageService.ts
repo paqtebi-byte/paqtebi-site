@@ -154,17 +154,28 @@ export const getAdPlacement = (): AdPlacement => {
     imageUrl: '',
     targetUrl: '',
     active: false,
+    views: 0,
   };
 };
 
 export const saveAdPlacement = (ad: AdPlacement): void => {
+  const existing = getAdPlacement();
   localStorage.setItem(
     STORAGE_KEY_AD_PLACEMENT,
     JSON.stringify({
       ...ad,
+      views: ad.views !== undefined ? ad.views : existing.views || 0,
       updatedAt: new Date().toISOString(),
     }),
   );
+};
+
+export const trackAdView = (): void => {
+  const ad = getAdPlacement();
+  if (ad && ad.active && ad.imageUrl) {
+    ad.views = (ad.views || 0) + 1;
+    localStorage.setItem(STORAGE_KEY_AD_PLACEMENT, JSON.stringify(ad));
+  }
 };
 
 export const clearAdPlacement = (): void => {

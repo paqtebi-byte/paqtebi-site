@@ -167,6 +167,10 @@ class ApiService {
     return RemoteApiService.clearAdPlacement();
   }
 
+  async trackAdView(): Promise<void> {
+    return RemoteApiService.trackAdView();
+  }
+
   async fetchAdInquiries(): Promise<AdInquiry[]> {
     return RemoteApiService.fetchAdInquiries();
   }

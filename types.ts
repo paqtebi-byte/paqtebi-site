@@ -91,6 +91,7 @@ export interface AdPlacement {
   targetUrl: string;
   active: boolean;
   updatedAt?: string;
+  views?: number;
 }
 
 export interface AdInquiry {

@@ -42,10 +42,20 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({ articles = [], cust
   useEffect(() => {
     const refreshAd = () => {
       adPlacementCache.data = null; // invalidate cache on storage event
-      getCachedAdPlacement().then(setAdPlacement);
+      getCachedAdPlacement().then((ad) => {
+        setAdPlacement(ad);
+        if (ad.active && ad.imageUrl) {
+          apiService.trackAdView();
+        }
+      });
     };
 
-    getCachedAdPlacement().then(setAdPlacement);
+    getCachedAdPlacement().then((ad) => {
+      setAdPlacement(ad);
+      if (ad.active && ad.imageUrl) {
+        apiService.trackAdView();
+      }
+    });
 
     window.addEventListener('storage', refreshAd);
     window.addEventListener('paqtebi-ad-placement-updated', refreshAd);
@@ -170,8 +180,13 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({ articles = [], cust
           target={adPlacement.targetUrl ? '_blank' : undefined}
           rel={adPlacement.targetUrl ? 'noopener noreferrer sponsored' : undefined}
           aria-label={adPlacement.title || 'რეკლამა'}
-          className="block overflow-hidden rounded-xl bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 transition-transform hover:-translate-y-0.5"
+          className="block overflow-hidden rounded-xl bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 transition-transform hover:-translate-y-0.5 group"
         >
+          {adPlacement.title && (
+            <div className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 p-3 text-left">
+              <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200 group-hover:text-news-accent transition-colors">{adPlacement.title}</h4>
+            </div>
+          )}
           <img
             src={adPlacement.imageUrl}
             alt={adPlacement.title || 'რეკლამა'}
