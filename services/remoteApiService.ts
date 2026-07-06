@@ -1014,6 +1014,10 @@ class RemoteApiService {
     }
   }
 
+  async trackAdView(): Promise<void> {
+    storageService.trackAdView();
+  }
+
   async fetchAdInquiries(): Promise<AdInquiry[]> {
     if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
       return this.getLocalAdInquiries();
