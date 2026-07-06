@@ -1286,7 +1286,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="px-3 py-1 rounded-full bg-gray-100 text-xs font-bold text-gray-600 flex items-center gap-1">
-                      <Eye size={14} /> {currentAd.views || 0} ნახვა
+                      <Eye size={14} /> {currentAd.views || 0} კლიკი
                     </div>
                     <span className={`badge ${currentAd.active ? 'badge-green' : 'bg-gray-100 text-gray-500'}`}>
                       {currentAd.active ? 'აქტიური' : 'გამორთული'}
