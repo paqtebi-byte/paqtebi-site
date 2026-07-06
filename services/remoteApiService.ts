@@ -1020,7 +1020,14 @@ class RemoteApiService {
   }
 
   async trackAdView(): Promise<void> {
-    storageService.trackAdView();
+    const ad = this.getLocalAdPlacement();
+    if (ad && ad.active && ad.imageUrl) {
+      ad.views = (ad.views || 0) + 1;
+      localStorage.setItem(this.AD_STORAGE_KEY, JSON.stringify(ad));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('paqtebi-ad-view-tracked', { detail: { views: ad.views } }));
+      }
+    }
   }
 
   async fetchAdInquiries(): Promise<AdInquiry[]> {
