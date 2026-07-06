@@ -97,7 +97,7 @@ class RemoteApiService {
     const stored = localStorage.getItem(this.AD_STORAGE_KEY);
     return stored
       ? JSON.parse(stored)
-      : { title: "", imageUrl: "", targetUrl: "", active: false };
+      : { title: "", imageUrl: "", targetUrl: "", active: false, views: 0 };
   }
 
   private saveLocalAdPlacement(ad: AdPlacement): AdPlacement {
@@ -936,6 +936,9 @@ class RemoteApiService {
       return this.getLocalAdPlacement();
     }
 
+    // views are always stored locally (not in Supabase), so we always read them from localStorage
+    const localViews = this.getLocalAdPlacement().views || 0;
+
     try {
       const { data, error } = await this.supabase!
         .from(DATABASE_CONFIG.TABLES.AD_PLACEMENTS)
@@ -952,6 +955,8 @@ class RemoteApiService {
           const local = this.getLocalAdPlacement();
           if (local.imageUrl) mapped.imageUrl = local.imageUrl;
         }
+        // Always merge local views since they aren't stored in Supabase
+        mapped.views = localViews;
         return mapped;
       }
       return this.getLocalAdPlacement();

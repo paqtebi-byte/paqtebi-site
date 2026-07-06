@@ -154,17 +154,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       });
     };
 
+    // Handle cross-tab localStorage changes (storage event fires in OTHER tabs when localStorage changes)
+    const handleStorageEvent = (e: StorageEvent) => {
+      if (e.key === 'paqtebi_ad_placement') {
+        refreshAdViews();
+      } else {
+        refreshAdInquiries();
+      }
+    };
+
     // Also refresh views whenever ADS tab is opened
     if (activeTab === 'ADS') {
       refreshAdViews();
     }
 
-    window.addEventListener('storage', refreshAdInquiries);
+    window.addEventListener('storage', handleStorageEvent);
     window.addEventListener('paqtebi-ad-inquiry-created', refreshAdInquiries);
     window.addEventListener('paqtebi-ad-view-tracked', refreshAdViews);
 
     return () => {
-      window.removeEventListener('storage', refreshAdInquiries);
+      window.removeEventListener('storage', handleStorageEvent);
       window.removeEventListener('paqtebi-ad-inquiry-created', refreshAdInquiries);
       window.removeEventListener('paqtebi-ad-view-tracked', refreshAdViews);
     };
