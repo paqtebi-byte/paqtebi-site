@@ -56,11 +56,11 @@ const getRandomNewsImage = () => NEWS_PLACEHOLDERS[Math.floor(Math.random() * NE
 /* ── NAV CONFIG ───────────────────────────────────────────────── */
 const NAV_CONFIG: { tab: Tab; icon: any; label: string; badge?: string }[] = [
   { tab: 'ANALYTICS',     icon: BarChart3,    label: 'მიმოხილვა' },
-  { tab: 'ARTICLES',      icon: FileText,     label: 'Articles' },
+  { tab: 'ARTICLES',      icon: FileText,     label: 'სტატიები' },
   { tab: 'VIDEO_REPORTS', icon: Video,        label: 'ვიდეო რეპორტაჟები' },
   { tab: 'PODCASTS',      icon: Mic,          label: 'პოდკასტები' },
   { tab: 'INTERESTING',   icon: Star,         label: 'საინტერესო' },
-  { tab: 'LIVE',          icon: Radio,        label: 'Live Streams' },
+  { tab: 'LIVE',          icon: Radio,        label: 'ლაივ სტრიმები' },
   { tab: 'ADS',           icon: Megaphone,    label: 'რეკლამა' },
   { tab: 'USERS',         icon: Users,        label: 'მომხმარებლები' },
   { tab: 'COMMENTS',      icon: MessageSquare,label: 'კომენტარები' },
