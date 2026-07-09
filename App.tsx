@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, useCallback } from "react";
+import React, { useState, useEffect, Suspense, useCallback, useRef } from "react";
 import { Routes, Route, useNavigate, useParams, useLocation, Navigate } from "react-router-dom";
 import { Article, User } from "./types";
 import { LoadingSkeleton } from "./components/LoadingSkeleton";
@@ -141,22 +141,20 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement | null>(null);
 
 
   useEffect(() => {
     const onScroll = () => {
       setScrolled(window.scrollY > 20);
-      
-      // Sync sidebar scrolling with main window scrolling
-      const sidebar = document.getElementById('sidebar-scroll');
+
+      // Sync sidebar scrolling with main window scrolling (using ref — no DOM query per frame)
+      const sidebar = sidebarRef.current;
       if (sidebar) {
-        // Calculate how far down the page the user has scrolled
         const maxWindowScroll = document.body.scrollHeight - window.innerHeight;
-        // If there's nowhere to scroll, avoid division by zero
         if (maxWindowScroll > 0) {
           const scrollPercentage = window.scrollY / maxWindowScroll;
           const maxSidebarScroll = sidebar.scrollHeight - sidebar.clientHeight;
-          // Apply the same percentage to the sidebar
           sidebar.scrollTop = scrollPercentage * maxSidebarScroll;
         }
       }
@@ -794,7 +792,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
 
             {/* Sidebar */}
             <aside className="lg:col-span-4">
-              <div id="sidebar-scroll" className="sticky top-24 max-h-[calc(100vh-6rem)] overflow-y-auto pr-2 pb-6 scroll-smooth custom-scrollbar">
+              <div ref={sidebarRef} id="sidebar-scroll" className="sticky top-24 max-h-[calc(100vh-6rem)] overflow-y-auto pr-2 pb-6 scroll-smooth custom-scrollbar">
                 <Sidebar articles={articleOnlyItems} customArticles={sidebarArticles} videos={articles.filter((a) => a.contentType === 'video' || ['ვიდეო რეპორტაჟები', 'პოდკასტები', 'საინტერესო'].includes(a.category))} onArticleClick={handleArticleClick} />
               </div>
             </aside>

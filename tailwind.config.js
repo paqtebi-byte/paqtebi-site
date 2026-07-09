@@ -1,0 +1,81 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    './index.html',
+    './*.tsx',
+    './*.ts',
+    './components/**/*.{tsx,ts}',
+    './context/**/*.{tsx,ts}',
+    './hooks/**/*.{tsx,ts}',
+    './utils/**/*.{tsx,ts}',
+    './src/**/*.{tsx,ts}',
+  ],
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['"Noto Sans Georgian"', '"Inter"', 'sans-serif'],
+        serif: ['"Noto Serif Georgian"', 'Georgia', 'serif'],
+        inter: ['"Inter"', 'sans-serif'],
+      },
+      colors: {
+        news: {
+          black: '#0d0d0d',
+          gray: '#6b7280',
+          light: '#f8fafc',
+          accent: '#dc2626',
+          'accent-dark': '#991b1b',
+          'accent-light': '#fef2f2',
+          darkblue: '#0a0f1e',
+          surface: '#ffffff',
+          border: '#e5e7eb',
+        },
+        brand: {
+          50: '#fef2f2',
+          100: '#fee2e2',
+          200: '#fecaca',
+          500: '#ef4444',
+          600: '#dc2626',
+          700: '#b91c1c',
+          800: '#991b1b',
+          900: '#7f1d1d',
+        },
+      },
+      animation: {
+        marquee: 'marquee 40s linear infinite',
+        'fade-up': 'fadeUp 0.5s ease-out forwards',
+        'slide-in': 'slideIn 0.3s ease-out forwards',
+        'pulse-slow': 'pulse 3s ease-in-out infinite',
+        shimmer: 'shimmer 2s linear infinite',
+      },
+      keyframes: {
+        marquee: {
+          '0%': { transform: 'translateX(100%)' },
+          '100%': { transform: 'translateX(-100%)' },
+        },
+        fadeUp: {
+          '0%': { opacity: '0', transform: 'translateY(16px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        slideIn: {
+          '0%': { opacity: '0', transform: 'translateX(-12px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
+        },
+      },
+      boxShadow: {
+        card: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)',
+        'card-hover': '0 8px 25px rgba(0,0,0,0.12), 0 3px 8px rgba(0,0,0,0.06)',
+        navbar: '0 1px 0 rgba(0,0,0,0.08)',
+        admin: '0 20px 60px rgba(0,0,0,0.3)',
+      },
+      backdropBlur: {
+        xs: '2px',
+      },
+    },
+  },
+  plugins: [],
+};
