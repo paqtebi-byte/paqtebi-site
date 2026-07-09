@@ -731,11 +731,11 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
                   )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-8 stagger">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-8">
                   {filteredFeedArticles.map((article) => (
                     <article
                       key={article.id}
-                      className="news-card bg-white dark:bg-[#111827] border border-gray-100 dark:border-white/10 group cursor-pointer flex flex-col animate-fade-up"
+                      className="news-card bg-white dark:bg-[#111827] border border-gray-100 dark:border-white/10 group cursor-pointer flex flex-col"
                       onMouseEnter={() => preloadContentRoute(article)}
                       onFocus={() => preloadContentRoute(article)}
                       onClick={() => handleArticleClick(article)}
