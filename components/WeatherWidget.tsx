@@ -99,7 +99,7 @@ export const WeatherWidget: React.FC = () => {
   if (!weather) return null;
 
   return (
-    <div className="text-white flex flex-col items-end animate-in fade-in slide-in-from-right duration-700">
+    <div className="text-white flex flex-col items-end transition-opacity duration-700">
       <div
         className="flex items-center gap-3"
         role="status"
