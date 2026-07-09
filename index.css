@@ -2,8 +2,7 @@
    Paqtebi — Professional News Design System
    ============================================================ */
 
-@import "tailwindcss/theme";
-@import "tailwindcss/utilities";
+@import "tailwindcss";
 
 /* ── Tailwind v4: Dark mode via .dark class ─────────────────── */
 @custom-variant dark (&:where(.dark, .dark *));
