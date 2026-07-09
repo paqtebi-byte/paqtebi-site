@@ -435,7 +435,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="xl:hidden bg-white dark:bg-gray-950 border-t border-gray-100 dark:border-gray-800 shadow-lg animate-fade-up">
+          <div className="xl:hidden bg-white dark:bg-gray-950 border-t border-gray-100 dark:border-gray-800 shadow-lg">
             <div className="p-4 space-y-1">
               <div className="flex items-center justify-between px-3 py-2 mb-2 rounded-xl bg-gray-50 dark:bg-gray-900">
                 <span className="text-sm font-bold text-gray-700 dark:text-gray-200">თემა</span>
@@ -557,7 +557,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
           {/* Content */}
           <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12 z-10">
             <div className="max-w-screen-xl mx-auto">
-              <div className="max-w-3xl animate-fade-up">
+              <div className="max-w-3xl">
                 <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-white leading-snug font-serif mb-4 tracking-normal">
                   {heroArticle?.title || "თანამედროვე სამყაროს გლობალური გამოწვევები და ახალი პერსპექტივები"}
                 </h1>

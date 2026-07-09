@@ -15,7 +15,10 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       alt="Paqtebi"
       className={`block object-contain ${imageClassName}`}
       loading="eager"
+      fetchpriority="high"
       decoding="async"
+      width="48"
+      height="36"
     />
   </div>
 );

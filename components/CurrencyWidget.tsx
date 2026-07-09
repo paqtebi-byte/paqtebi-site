@@ -3,7 +3,7 @@ import { TrendingUp, TrendingDown, DollarSign, Euro } from 'lucide-react';
 
 export const CurrencyWidget: React.FC = () => {
   return (
-    <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-right duration-700 delay-100">
+    <div className="flex flex-col gap-2 transition-opacity duration-700 delay-100">
       
       {/* USD */}
       <div className="flex items-center gap-3 text-white group cursor-default">

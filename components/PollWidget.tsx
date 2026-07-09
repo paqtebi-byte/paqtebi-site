@@ -76,7 +76,7 @@ export const PollWidget: React.FC = () => {
   if (!poll) return null;
 
   return (
-    <div className="bg-gradient-to-br from-news-black to-gray-900 text-white p-6 rounded-sm shadow-lg border border-gray-800 animate-in fade-in slide-in-from-bottom duration-500">
+    <div className="bg-gradient-to-br from-news-black to-gray-900 text-white p-6 rounded-sm shadow-lg border border-gray-800 transition-opacity duration-500">
       <div className="flex items-center gap-2 mb-4">
         <BarChart3 className="text-news-accent" size={20} />
         <h3 className="font-bold text-lg">დღის გამოკითხვა</h3>
