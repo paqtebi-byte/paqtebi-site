@@ -2,9 +2,67 @@
    Paqtebi — Professional News Design System
    ============================================================ */
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* ── Tailwind v4: Dark mode via .dark class ─────────────────── */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Tailwind v4: Custom Theme Tokens ───────────────────────── */
+@theme {
+  --font-family-sans: "Noto Sans Georgian", "Inter", sans-serif;
+  --font-family-serif: "Noto Serif Georgian", Georgia, serif;
+  --font-family-inter: "Inter", sans-serif;
+
+  --color-news-black:        #0d0d0d;
+  --color-news-gray:         #6b7280;
+  --color-news-light:        #f8fafc;
+  --color-news-accent:       #dc2626;
+  --color-news-accent-dark:  #991b1b;
+  --color-news-accent-light: #fef2f2;
+  --color-news-darkblue:     #0a0f1e;
+  --color-news-surface:      #ffffff;
+  --color-news-border:       #e5e7eb;
+
+  --color-brand-50:  #fef2f2;
+  --color-brand-100: #fee2e2;
+  --color-brand-200: #fecaca;
+  --color-brand-500: #ef4444;
+  --color-brand-600: #dc2626;
+  --color-brand-700: #b91c1c;
+  --color-brand-800: #991b1b;
+  --color-brand-900: #7f1d1d;
+
+  --animate-marquee:    marquee 40s linear infinite;
+  --animate-fade-up:    fadeUp 0.5s ease-out forwards;
+  --animate-slide-in:   slideIn 0.3s ease-out forwards;
+  --animate-pulse-slow: pulse 3s ease-in-out infinite;
+  --animate-shimmer:    shimmer 2s linear infinite;
+
+  --shadow-card:      0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-card-hover: 0 8px 25px rgba(0,0,0,0.12), 0 3px 8px rgba(0,0,0,0.06);
+  --shadow-navbar:    0 1px 0 rgba(0,0,0,0.08);
+  --shadow-admin:     0 20px 60px rgba(0,0,0,0.3);
+
+  --backdrop-blur-xs: 2px;
+
+  @keyframes marquee {
+    0%   { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
+  }
+  @keyframes fadeUp {
+    0%   { opacity: 0; transform: translateY(16px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slideIn {
+    0%   { opacity: 0; transform: translateX(-12px); }
+    100% { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position:  200% 0; }
+  }
+}
+
 
 /* ── Variables ─────────────────────────────────────────────── */
 :root {
