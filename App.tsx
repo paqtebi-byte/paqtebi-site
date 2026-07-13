@@ -41,6 +41,7 @@ import { AuthProvider, useAuthContext } from './context/AuthContext';
 import { ArticlesProvider, useArticlesContext } from './context/ArticlesContext';
 import { useBreakingNews } from "./hooks/useBreakingNews";
 import { useBookmarks } from "./hooks/useBookmarks";
+import { Analytics } from '@vercel/analytics/react';
 
 const loadArticleDetail = () => import("./components/ArticleDetail");
 const loadLivePage = () => import("./components/LivePage");
@@ -1060,6 +1061,7 @@ const App: React.FC = () => (
         <ToastProvider>
           <ErrorBoundary>
             <AppContent />
+            <Analytics />
           </ErrorBoundary>
         </ToastProvider>
       </DarkModeProvider>
