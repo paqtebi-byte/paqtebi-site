@@ -88,13 +88,33 @@ async function getExactCount(path) {
 }
 
 async function getArticleViewCounts(articleIds = []) {
-  const { data } = await supabaseRequest(
-    "comments?select=id,article_id,text&author=eq.__paqtebi_view__&limit=10000",
-    { method: "GET" },
-  );
   const requestedIds = new Set(articleIds.filter(Boolean));
+  let allData = [];
+  const limit = 1000;
+  const maxPages = 50;
 
-  return (data || []).reduce((counts, row) => {
+  for (let page = 0; page < maxPages; page++) {
+    const start = page * limit;
+    const end = start + limit - 1;
+
+    const { data } = await supabaseRequest(
+      "comments?select=id,article_id,text&author=eq.__paqtebi_view__",
+      {
+        method: "GET",
+        headers: { Range: `${start}-${end}` },
+      }
+    );
+
+    if (!data || data.length === 0) break;
+    allData = allData.concat(data);
+    if (data.length < limit) break;
+  }
+
+  if (allData.length >= maxPages * limit) {
+    console.warn(`getArticleViewCounts reached maximum pagination limit of ${maxPages} pages.`);
+  }
+
+  return allData.reduce((counts, row) => {
     const articleId = decodeViewArticleId(row);
     if (!articleId || (requestedIds.size > 0 && !requestedIds.has(articleId))) {
       return counts;
