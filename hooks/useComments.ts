@@ -43,11 +43,19 @@ export const useComments = (articleId?: string) => {
   };
 
   const editComment = async (id: string, text: string) => {
-    const updated = await apiService.updateComment(id, text);
-    if (!updated) {
-      throw new Error("Comment was not updated");
+    try {
+      const updatedComment = await apiService.updateComment(id, text);
+      if (!updatedComment) {
+        throw new Error("Comment was not updated");
+      }
+      setComments((prevComments) =>
+        prevComments.map((c) =>
+          c.id === id ? { ...c, text: updatedComment.text } : c
+        )
+      );
+    } catch (err) {
+      throw err;
     }
-    await refreshComments();
   };
 
   return {

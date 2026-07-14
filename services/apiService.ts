@@ -121,7 +121,7 @@ class ApiService {
   /**
    * Update a comment text by ID
    */
-  async updateComment(id: string, text: string): Promise<boolean> {
+  async updateComment(id: string, text: string): Promise<Comment | null> {
     return RemoteApiService.updateComment(id, text);
   }
 

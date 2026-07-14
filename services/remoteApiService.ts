@@ -819,7 +819,7 @@ class RemoteApiService {
   /**
    * Update a comment text by ID
    */
-  async updateComment(id: string, text: string): Promise<boolean> {
+  async updateComment(id: string, text: string): Promise<Comment | null> {
     if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
       try {
         const comments = await this.fetchComments();
@@ -827,29 +827,31 @@ class RemoteApiService {
         if (index !== -1) {
           comments[index].text = text;
           localStorage.setItem(this.COMMENT_STORAGE_KEY, JSON.stringify(comments));
-          return true;
+          return comments[index];
         }
-        return false;
+        return null;
       } catch (error) {
         console.error("Error updating comment in localStorage:", error);
-        return false;
+        return null;
       }
     }
 
     try {
-      const { error } = await this.supabase!
+      const { data, error } = await this.supabase!
         .from(DATABASE_CONFIG.TABLES.COMMENTS)
         .update({ text })
-        .eq("id", id);
+        .eq("id", id)
+        .select()
+        .single();
 
       if (error) {
         throw new Error(`Error updating comment: ${error.message}`);
       }
 
-      return true;
+      return this.mapCommentFromDb(data, undefined);
     } catch (error) {
       console.error("Error in updateComment:", error);
-      return false;
+      return null;
     }
   }
 
