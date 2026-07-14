@@ -310,10 +310,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     setIsEditing(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('ნამდვილად გსურთ წაშლა?')) {
-      removeArticle(id);
-      addToast('სტატია წაიშალა', 'success');
+      try {
+        await removeArticle(id);
+        addToast('სტატია წაიშალა', 'success');
+      } catch (err) {
+        addToast('წაშლა ვერ მოხერხდა', 'error');
+        console.error('[AdminDashboard] delete error:', err);
+      }
     }
   };
 

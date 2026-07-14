@@ -88,9 +88,10 @@ export const useArticles = () => {
   }, []);
 
   const refreshLocalOnly = async () => {
-    const localNews = await apiService.fetchArticles();
-    articleCache.all = localNews;
-    articleCache.article = localNews.filter((article) => (article.contentType || "article") === "article");
+    const result = await apiService.fetchArticles("all", 1, 1000);
+    const localNews = result.data;
+    articleCache["all_1_20"] = localNews;
+    articleCache["article_1_20"] = localNews.filter((article) => (article.contentType || "article") === "article");
     setArticles(localNews);
   };
 

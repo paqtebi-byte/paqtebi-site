@@ -16,9 +16,9 @@ export const LivePage: React.FC = () => {
     let active = true;
     setLoading(true);
 
-    apiService.fetchArticles("live").then((items) => {
+    apiService.fetchArticles("live", 1, 100).then(({ data }) => {
       if (!active) return;
-      setStreams(items);
+      setStreams(data);
       setLoading(false);
     });
 
