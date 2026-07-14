@@ -247,6 +247,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
   };
 
   const filteredFeedArticles = getFilteredArticles();
+  const displayedFeedArticles = (viewMode === "home" && !searchQuery) ? filteredFeedArticles.slice(0, 20) : filteredFeedArticles;
   const now = new Date();
   const timeStr = now.toLocaleTimeString("ka-GE", { hour: "2-digit", minute: "2-digit" });
   const dateStr = now.toLocaleDateString("ka-GE", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
@@ -706,7 +707,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
               </div>
 
               {/* Articles Grid */}
-              {filteredFeedArticles.length === 0 ? (
+              {displayedFeedArticles.length === 0 ? (
                 <div className="py-20 text-center bg-gray-50 dark:bg-gray-900/60 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
                   {viewMode === "saved" ? (
                     <>
@@ -733,7 +734,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-8">
-                  {filteredFeedArticles.map((article) => (
+                  {displayedFeedArticles.map((article) => (
                     <article
                       key={article.id}
                       className="news-card bg-white dark:bg-[#111827] border border-gray-100 dark:border-white/10 group cursor-pointer flex flex-col"
