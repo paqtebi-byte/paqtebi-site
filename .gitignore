@@ -25,3 +25,7 @@ dist-ssr
 *.sw?
 test.css
 codex-git-index.tmp
+
+# Temporary test files
+test.*
+nbg_test.json
