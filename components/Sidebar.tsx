@@ -60,12 +60,57 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({ articles = [], cust
   }, []);
 
 
-  const popularPublications = [
-    { id: 1, title: "როგორ შეცვალა ხელოვნურმა ინტელექტმა მედიცინა", views: "12.5K" },
-    { id: 2, title: "ახალი ეკონომიკური რეფორმები: რას უნდა ველოდოთ", views: "10.2K" },
-    { id: 3, title: "კლიმატის ცვლილება და საქართველოს სოფლის მეურნეობა", views: "8.9K" },
-    { id: 4, title: "ტექნოლოგიური სტარტაპები საქართველოში", views: "7.1K" },
-  ];
+  const [mostDiscussed, setMostDiscussed] = useState<{ article: Article, commentCount: number }[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    const fetchMostDiscussed = async () => {
+      try {
+        const comments = await apiService.fetchComments();
+        const counts: Record<string, number> = {};
+        
+        comments.forEach(c => {
+          if (c.author !== '__paqtebi_view__' && !c.text.startsWith('[[paqtebi-')) {
+            counts[c.articleId] = (counts[c.articleId] || 0) + 1;
+          }
+        });
+        
+        const sortedIds = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+        const result: { article: Article, commentCount: number }[] = [];
+        
+        for (const id of sortedIds) {
+          if (result.length >= 4) break;
+          let article = articles.find(a => a.id === id);
+          if (!article) {
+            article = await apiService.fetchArticleById(id) || undefined;
+          }
+          if (article) {
+            result.push({ article, commentCount: counts[id] });
+          }
+        }
+        
+        if (result.length < 4) {
+          const needed = 4 - result.length;
+          const recent = articles.filter(a => !result.some(r => r.article.id === a.id)).slice(0, needed);
+          recent.forEach(r => {
+            result.push({ article: r, commentCount: 0 });
+          });
+        }
+        
+        if (active) {
+          setMostDiscussed(result);
+        }
+      } catch (err) {
+        console.error('Failed to fetch most discussed:', err);
+      }
+    };
+    
+    if (articles.length > 0) {
+      fetchMostDiscussed();
+    }
+    
+    return () => { active = false; };
+  }, [articles.length > 0]);
 
   const videoReports = videos.filter(v => v.category === 'ვიდეო რეპორტაჟები').slice(0, 1);
   const podcasts = videos.filter(v => v.category === 'პოდკასტები').slice(0, 1);
@@ -305,27 +350,40 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({ articles = [], cust
         </div>
       )}
 
-      {/* Popular Articles */}
-      {!customArticles.length && (
+      {/* Most Discussed Articles */}
+      {!customArticles.length && mostDiscussed.length > 0 && (
         <div className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800">
           <div className="px-5 py-4 flex items-center gap-2 border-b border-gray-100 dark:border-gray-800">
-            <TrendingUp size={16} className="text-news-accent" />
-            <h3 className="section-title text-sm">პოპულარული</h3>
+            <MessageSquare size={16} className="text-news-accent" />
+            <h3 className="section-title text-sm">ცხელი განხილვები</h3>
           </div>
           <ul className="divide-y divide-gray-50 dark:divide-gray-800">
-            {popularPublications.map((item, index) => (
-              <li key={item.id} className="group cursor-pointer p-4 hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors">
+            {mostDiscussed.map((item, index) => (
+              <li key={item.article.id} onClick={() => onArticleClick?.(item.article)} className="group cursor-pointer p-4 hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors">
                 <div className="flex gap-3 items-start">
                   <span className="text-2xl font-black leading-none mt-0.5 flex-shrink-0" style={{ color: index === 0 ? '#dc2626' : '#e5e7eb' }}>
                     {String(index + 1).padStart(2, '0')}
                   </span>
                   <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-snug mb-1 group-hover:text-news-accent transition-colors line-clamp-2">
-                      {item.title}
+                      {item.article.title}
                     </h4>
-                    <div className="flex items-center gap-1 text-xs text-gray-400">
-                      <Eye size={11} />
-                      <span>{item.views} ნახვა</span>
+                    <div className="flex items-center gap-3 text-xs text-gray-400">
+                      {item.commentCount > 0 ? (
+                        <span className="flex items-center gap-1 text-news-accent font-semibold">
+                          <MessageSquare size={11} />
+                          {item.commentCount} კომენტარი
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1">
+                          <Clock size={11} />
+                          ახალი
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <Eye size={11} />
+                        <span>{item.article.viewCount || 0} ნახვა</span>
+                      </span>
                     </div>
                   </div>
                 </div>
