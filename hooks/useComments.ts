@@ -42,10 +42,19 @@ export const useComments = (articleId?: string) => {
     await refreshComments();
   };
 
+  const editComment = async (id: string, text: string) => {
+    const updated = await apiService.updateComment(id, text);
+    if (!updated) {
+      throw new Error("Comment was not updated");
+    }
+    await refreshComments();
+  };
+
   return {
     comments,
     addComment,
     removeComment,
+    editComment,
     addReaction,
     refreshComments,
   };

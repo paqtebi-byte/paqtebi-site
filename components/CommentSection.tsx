@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Comment, User as UserType } from '../types';
-import { Send, User, Lock, Trash2, ThumbsUp, ThumbsDown, Heart, MessageCircle } from 'lucide-react';
+import { Send, User, Lock, Trash2, ThumbsUp, ThumbsDown, Heart, MessageCircle, Edit2 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { useComments } from '../hooks/useComments';
 import { sanitizeInput } from '../utils/security';
@@ -33,9 +33,26 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   isAdmin,
 }) => {
   const { addToast } = useToast();
-  const { comments, addComment, removeComment, addReaction } = useComments(articleId);
+  const { comments, addComment, removeComment, editComment, addReaction } = useComments(articleId);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editCommentText, setEditCommentText] = useState('');
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+
+  const handleEditSave = async (id: string) => {
+    if (!editCommentText.trim() || isSubmittingEdit) return;
+    setIsSubmittingEdit(true);
+    try {
+      await editComment(id, sanitizeInput(editCommentText));
+      setEditingCommentId(null);
+      addToast('კომენტარი განახლდა', 'success');
+    } catch (error) {
+      console.error('[CommentSection] edit error:', error);
+      addToast('განახლება ვერ მოხერხდა', 'error');
+    }
+    setIsSubmittingEdit(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,24 +165,66 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                       </time>
                     </div>
                     {(isAdmin || currentUser?.username === comment.author) && (
-                      <button
-                        onClick={() => {
-                          if (window.confirm('წავშალოთ კომენტარი?')) {
-                            removeComment(comment.id).catch((error) => {
-                              console.error('[CommentSection] delete error:', error);
-                              addToast(COMMENT_DELETE_ERROR, 'error');
-                            });
-                          }
-                        }}
-                        className="rounded-sm p-2 text-gray-400 opacity-0 transition-all hover:bg-red-50 hover:text-news-accent group-hover:opacity-100 dark:hover:bg-red-950/20"
-                        title="წაშლა"
-                        aria-label="კომენტარის წაშლა"
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                      <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        {currentUser?.username === comment.author && (
+                          <button
+                            onClick={() => {
+                              setEditingCommentId(comment.id);
+                              setEditCommentText(comment.text);
+                            }}
+                            className="rounded-sm p-2 text-gray-400 transition-all hover:bg-gray-100 hover:text-news-accent dark:hover:bg-gray-800"
+                            title="რედაქტირება"
+                            aria-label="კომენტარის რედაქტირება"
+                          >
+                            <Edit2 size={15} />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            if (window.confirm('წავშალოთ კომენტარი?')) {
+                              removeComment(comment.id).catch((error) => {
+                                console.error('[CommentSection] delete error:', error);
+                                addToast(COMMENT_DELETE_ERROR, 'error');
+                              });
+                            }
+                          }}
+                          className="rounded-sm p-2 text-gray-400 transition-all hover:bg-red-50 hover:text-news-accent dark:hover:bg-red-950/20"
+                          title="წაშლა"
+                          aria-label="კომენტარის წაშლა"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     )}
                   </div>
-                  <p className="mt-3 text-sm leading-7 text-gray-700 dark:text-gray-300">{comment.text}</p>
+                  {editingCommentId === comment.id ? (
+                    <div className="mt-3">
+                      <textarea
+                        value={editCommentText}
+                        onChange={(e) => setEditCommentText(e.target.value)}
+                        className="w-full resize-none rounded-sm border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/70 p-3 text-sm text-news-black dark:text-white outline-none transition-all placeholder-gray-400 focus:border-news-accent focus:bg-white dark:focus:bg-gray-900 focus:ring-4 focus:ring-red-500/10"
+                        rows={3}
+                      />
+                      <div className="mt-2 flex justify-end gap-2">
+                        <button
+                          onClick={() => setEditingCommentId(null)}
+                          className="px-3 py-1.5 text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-sm"
+                          disabled={isSubmittingEdit}
+                        >
+                          გაუქმება
+                        </button>
+                        <button
+                          onClick={() => handleEditSave(comment.id)}
+                          className="px-3 py-1.5 text-xs font-bold text-white bg-news-accent hover:bg-red-700 rounded-sm disabled:opacity-50"
+                          disabled={isSubmittingEdit || !editCommentText.trim()}
+                        >
+                          შენახვა
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-sm leading-7 text-gray-700 dark:text-gray-300">{comment.text}</p>
+                  )}
                   <div className="mt-4 flex flex-wrap items-center gap-2">
                     {reactionOptions.map(({ icon: Icon, label, title }) => (
                       <button

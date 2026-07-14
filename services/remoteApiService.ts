@@ -817,6 +817,43 @@ class RemoteApiService {
   }
 
   /**
+   * Update a comment text by ID
+   */
+  async updateComment(id: string, text: string): Promise<boolean> {
+    if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
+      try {
+        const comments = await this.fetchComments();
+        const index = comments.findIndex((c) => c.id === id);
+        if (index !== -1) {
+          comments[index].text = text;
+          localStorage.setItem(this.COMMENT_STORAGE_KEY, JSON.stringify(comments));
+          return true;
+        }
+        return false;
+      } catch (error) {
+        console.error("Error updating comment in localStorage:", error);
+        return false;
+      }
+    }
+
+    try {
+      const { error } = await this.supabase!
+        .from(DATABASE_CONFIG.TABLES.COMMENTS)
+        .update({ text })
+        .eq("id", id);
+
+      if (error) {
+        throw new Error(`Error updating comment: ${error.message}`);
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error in updateComment:", error);
+      return false;
+    }
+  }
+
+  /**
    * Add a reaction to a comment
    */
   async addReaction(id: string, reaction: string): Promise<boolean> {
