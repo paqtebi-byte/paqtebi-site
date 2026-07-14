@@ -338,7 +338,7 @@ class RemoteApiService {
     // NOTE: 'content' (full HTML body) is intentionally excluded here to minimise egress.
     // It is fetched on-demand only when a single article is opened (see fetchArticleById).
     try {
-      let query = this.supabase!
+      let mainQuery = this.supabase!
         .from(DATABASE_CONFIG.TABLES.ARTICLES)
         .select(
           "id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived"
@@ -348,16 +348,44 @@ class RemoteApiService {
         .range(0, 99);
 
       if (contentType !== "all") {
-        query = query.eq("content_type", contentType);
+        mainQuery = mainQuery.eq("content_type", contentType);
       }
 
-      const { data, error } = await query;
-
-      if (error) {
-        throw new Error(`Error fetching articles: ${error.message}`);
+      // Sidebar categories can fall outside the main .range(0,99) window if their latest
+      // item is older than the 100 most recent articles across ALL categories. This has
+      // broken sidebar sections before (see .range(0,49) incident) — do not remove this 
+      // without ensuring sidebar sections still populate correctly.
+      let sidebarQuery: any = null;
+      if (contentType === "all") {
+        sidebarQuery = this.supabase!
+          .from(DATABASE_CONFIG.TABLES.ARTICLES)
+          .select(
+            "id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived"
+          )
+          .eq("is_archived", false)
+          .in("category", ["ვიდეო რეპორტაჟები", "პოდკასტები", "საინტერესო"])
+          .order("created_at", { ascending: false })
+          .limit(15);
       }
 
-      return this.attachArticleViewCounts((data || []).map((row) => this.mapArticleFromDb(row)));
+      const [mainResult, sidebarResult] = await Promise.all([
+        mainQuery,
+        sidebarQuery ? sidebarQuery : Promise.resolve({ data: null, error: null })
+      ]);
+
+      if (mainResult.error) {
+        throw new Error(`Error fetching articles: ${mainResult.error.message}`);
+      }
+
+      const allRows = [...(mainResult.data || []), ...(sidebarResult.data || [])];
+      
+      // Deduplicate by ID to prevent any article from appearing twice in the merged result
+      const uniqueRows = Array.from(new Map(allRows.map(r => [r.id, r])).values());
+      
+      // Re-sort descending by created_at to maintain correct chronological timeline
+      uniqueRows.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      return this.attachArticleViewCounts(uniqueRows.map((row) => this.mapArticleFromDb(row)));
     } catch (error) {
       console.error("Error in fetchArticles:", error);
       return [];
