@@ -7,8 +7,8 @@ import { AdInquiry, AdPlacement, Article, Comment, BreakingNewsItem, User, Analy
  * to maintain compatibility with existing code
  */
 class ApiService {
-  private articleCache = new Map<string, { data: Article[]; timestamp: number }>();
-  private articleRequests = new Map<string, Promise<Article[]>>();
+  private articleCache = new Map<string, { data: Article[]; count: number; timestamp: number }>();
+  private articleRequests = new Map<string, Promise<{ data: Article[]; count: number }>>();
   private readonly ARTICLE_CACHE_TTL = 300_000; // 5 minutes
 
   private clearArticleCache() {
@@ -17,29 +17,29 @@ class ApiService {
   }
 
   /**
-   * Fetch all articles from storage
+   * Fetch all articles from storage with pagination
    */
-  async fetchArticles(contentType: Article["contentType"] | "all" = "all"): Promise<Article[]> {
-    const key = contentType || "all";
+  async fetchArticles(contentType: Article["contentType"] | "all" = "all", page: number = 1, limit: number = 20): Promise<{ data: Article[], count: number }> {
+    const key = `${contentType || "all"}_${page}_${limit}`;
     const cached = this.articleCache.get(key);
     if (cached && Date.now() - cached.timestamp < this.ARTICLE_CACHE_TTL) {
-      return cached.data;
+      return { data: cached.data, count: cached.count };
     }
 
     const pending = this.articleRequests.get(key);
     if (pending) return pending;
 
-    const request = RemoteApiService.fetchArticles(contentType)
-      .then((data) => {
-        const sanitizedData = data.map(article => {
+    const request = RemoteApiService.fetchArticles(contentType, page, limit)
+      .then((result) => {
+        const sanitizedData = result.data.map(article => {
           if (article.layout === 'hero' && article.imageUrl?.includes('picsum.photos')) {
             return { ...article, imageUrl: '' };
           }
           return article;
         });
-        this.articleCache.set(key, { data: sanitizedData, timestamp: Date.now() });
+        this.articleCache.set(key, { data: sanitizedData, count: result.count, timestamp: Date.now() });
         this.articleRequests.delete(key);
-        return sanitizedData;
+        return { data: sanitizedData, count: result.count };
       })
       .catch((error) => {
         this.articleRequests.delete(key);
@@ -48,6 +48,13 @@ class ApiService {
 
     this.articleRequests.set(key, request);
     return request;
+  }
+
+  /**
+   * Fetch popular articles based on global view counts
+   */
+  async fetchPopularArticles(limit: number = 5): Promise<Article[]> {
+    return RemoteApiService.fetchPopularArticles(limit);
   }
 
   /**

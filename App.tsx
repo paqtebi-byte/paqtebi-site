@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate, useParams, useLocation, Navigate } from "re
 import { Article, User } from "./types";
 import { LoadingSkeleton } from "./components/LoadingSkeleton";
 import { Sidebar } from "./components/Sidebar";
+import { Pagination } from "./components/Pagination";
 import DarkModeToggle from "./components/DarkModeToggle";
 import { WeatherWidget } from "./components/WeatherWidget";
 import { CurrencyWidget } from "./components/CurrencyWidget";
@@ -130,7 +131,7 @@ const getEffectiveSiteUser = (
 const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home" }) => {
   const navigate = useNavigate();
   const { currentUser, isAdminAuthenticated, logoutPublic, setCurrentUser } = useAuthContext();
-  const { articles, loading, error } = useArticlesContext();
+  const { articles, loading, error, page, totalPages, loadAllNews } = useArticlesContext();
   const { breakingNews } = useBreakingNews();
   const { bookmarkedIds } = useBookmarks();
 
@@ -231,7 +232,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
   const heroHasArticleContent = Boolean(heroArticle?.content?.replace(/<[^>]*>/g, "").trim());
   const sidebarArticles = articleOnlyItems.filter((a) => a.layout === "sidebar");
   const mainFeedArticles = articleOnlyItems.filter(
-    (a) => (a.layout === "standard" || !a.layout) && (explicitHeroArticle ? a.id !== explicitHeroArticle.id : true)
+    (a) => (a.layout === "standard" || !a.layout) && !(a as any)._isSupplementary && (explicitHeroArticle ? a.id !== explicitHeroArticle.id : true)
   );
 
   const getFilteredArticles = () => {
@@ -787,6 +788,16 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
                     </article>
                   ))}
                 </div>
+              )}
+              {viewMode === "home" && !searchQuery && selectedCategory === FEED_CATEGORIES[0] && (
+                <Pagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  onPageChange={(newPage) => {
+                    loadAllNews(newPage);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                />
               )}
             </div>
 

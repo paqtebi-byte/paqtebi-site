@@ -30,8 +30,9 @@ export const VideoPage: React.FC<VideoPageProps> = ({ category, title, currentUs
   useEffect(() => {
     let active = true;
     setLoading(true);
-    apiService.fetchArticles("video").then((items) => {
+    apiService.fetchArticles("video", 1, 100).then((result) => {
       if (!active) return;
+      const items = result.data;
       const filtered = category ? items.filter((v) => v.category === category) : items;
       setVideos(filtered);
       setLoading(false);
@@ -39,7 +40,7 @@ export const VideoPage: React.FC<VideoPageProps> = ({ category, title, currentUs
     return () => {
       active = false;
     };
-  }, []);
+  }, [category]);
 
   const selectedVideo = id ? videos.find((item) => item.id === id) : undefined;
 

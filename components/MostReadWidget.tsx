@@ -4,14 +4,15 @@ import { Article } from '../types';
 import { LazyImage } from './LazyImage';
 
 interface MostReadWidgetProps {
-  articles?: Article[];
   onArticleClick?: (article: Article) => void;
 }
 
 import { getArticleViewCount } from '../utils/viewUtils';
+import apiService from '../services/apiService';
 
-export const MostReadWidget: React.FC<MostReadWidgetProps> = ({ articles = [], onArticleClick }) => {
+export const MostReadWidget: React.FC<MostReadWidgetProps> = ({ onArticleClick }) => {
   const [refreshTick, setRefreshTick] = useState(0);
+  const [rankedArticles, setRankedArticles] = useState<{article: Article, views: number}[]>([]);
 
   useEffect(() => {
     const handleViewTracked = () => {
@@ -23,17 +24,21 @@ export const MostReadWidget: React.FC<MostReadWidgetProps> = ({ articles = [], o
     };
   }, []);
 
-  const rankedArticles = useMemo(() => {
-    return articles
-      .filter((article) => (article.contentType || 'article') === 'article' && article.layout !== 'hero')
-      .map((article) => ({
-        article,
-        views: getArticleViewCount(article),
-      }))
-      .filter(({ views }) => views > 0)
-      .sort((a, b) => b.views - a.views)
-      .slice(0, 5);
-  }, [articles, refreshTick]);
+  useEffect(() => {
+    let active = true;
+    apiService.fetchPopularArticles(5).then(fetched => {
+      if (!active) return;
+      setRankedArticles(
+        fetched.map(article => ({
+          article,
+          views: Number(article.viewCount || 0)
+        }))
+      );
+    });
+    return () => {
+      active = false;
+    };
+  }, [refreshTick]);
 
   if (rankedArticles.length === 0) return null;
 

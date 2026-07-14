@@ -258,7 +258,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({ articles = [], cust
       <PollWidget />
 
       {/* Most Read */}
-      <MostReadWidget articles={articles} onArticleClick={onArticleClick} />
+      <MostReadWidget onArticleClick={onArticleClick} />
 
       {/* Zodiac */}
       <ZodiacWidget />

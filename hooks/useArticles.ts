@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Article } from "../types";
 import apiService from "../services/apiService";
 
-type ArticleCacheKey = NonNullable<Article["contentType"]> | "all";
+type ArticleCacheKey = string; // e.g., "all_1_20"
 
 const articleCache: Partial<Record<ArticleCacheKey, Article[]>> = {};
 
@@ -22,12 +22,15 @@ const applyViewCountUpdate = (
 });
 
 export const useArticles = () => {
-  const [articles, setArticles] = useState<Article[]>(() => articleCache.all ?? []);
-  const [loading, setLoading] = useState<boolean>(() => !articleCache.all);
+  const [articles, setArticles] = useState<Article[]>(() => articleCache["all_1_20"] ?? []);
+  const [loading, setLoading] = useState<boolean>(() => !articleCache["all_1_20"]);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  const loadNews = useCallback(async (contentType: ArticleCacheKey = "all") => {
-    const cachedArticles = articleCache[contentType];
+  const loadNews = useCallback(async (contentType: NonNullable<Article["contentType"]> | "all" = "all", pageParam: number = 1, limitParam: number = 20) => {
+    const cacheKey = `${contentType}_${pageParam}_${limitParam}`;
+    const cachedArticles = articleCache[cacheKey];
     if (cachedArticles) {
       setArticles(cachedArticles);
       setLoading(false);
@@ -37,24 +40,29 @@ export const useArticles = () => {
 
     setError(null);
     try {
-      const localNews = await apiService.fetchArticles(contentType);
-      articleCache[contentType] = localNews;
+      const result = await apiService.fetchArticles(contentType, pageParam, limitParam);
+      const localNews = result.data;
+      articleCache[cacheKey] = localNews;
       if (contentType === "all") {
-        articleCache.article = localNews.filter((article) => (article.contentType || "article") === "article");
+        articleCache[`article_${pageParam}_${limitParam}`] = localNews.filter((article) => (article.contentType || "article") === "article");
       }
       setArticles(localNews);
+      setTotalPages(Math.ceil(result.count / limitParam) || 1);
+      setPage(pageParam);
       setLoading(false);
     } catch (err) {
       setError("ვერ მოხერხდა ახალი ამბების ჩატვირთვა.");
-      const fallbackArticles = await apiService.fetchArticles(contentType);
-      articleCache[contentType] = fallbackArticles;
-      setArticles(fallbackArticles);
+      const fallbackResult = await apiService.fetchArticles(contentType, pageParam, limitParam);
+      articleCache[cacheKey] = fallbackResult.data;
+      setArticles(fallbackResult.data);
+      setTotalPages(Math.ceil(fallbackResult.count / limitParam) || 1);
+      setPage(pageParam);
       setLoading(false);
     }
   }, []);
 
-  const loadAllNews = useCallback(() => loadNews("all"), [loadNews]);
-  const loadArticleNews = useCallback(() => loadNews("article"), [loadNews]);
+  const loadAllNews = useCallback((p: number = 1) => loadNews("all", p), [loadNews]);
+  const loadArticleNews = useCallback((p: number = 1) => loadNews("article", p), [loadNews]);
 
   useEffect(() => {
     const handleViewTracked = (event: Event) => {
@@ -129,6 +137,8 @@ export const useArticles = () => {
     articles,
     loading,
     error,
+    page,
+    totalPages,
     loadAllNews,
     loadArticleNews,
     refreshLocalOnly,

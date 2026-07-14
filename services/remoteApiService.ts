@@ -260,7 +260,8 @@ class RemoteApiService {
       };
     } catch (error) {
       console.warn("Analytics API failed; using local fallback:", error);
-      const articles = await this.fetchArticles();
+      const fetchResult = await this.fetchArticles();
+      const articles = fetchResult.data;
       return {
         totalArticles: articles.length,
         totalViews: this.getLocalViewEvents().length,
@@ -317,9 +318,9 @@ class RemoteApiService {
   }
 
   /**
-   * Fetch all articles from the database
+   * Fetch all articles from the database with pagination
    */
-  async fetchArticles(contentType: Article["contentType"] | "all" = "all"): Promise<Article[]> {
+  async fetchArticles(contentType: Article["contentType"] | "all" = "all", page: number = 1, limit: number = 20): Promise<{ data: Article[], count: number }> {
     if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
       try {
         const stored = localStorage.getItem(this.LOCAL_STORAGE_KEY);
@@ -327,34 +328,33 @@ class RemoteApiService {
         const filteredArticles = contentType === "all"
           ? articles
           : articles.filter((article: Article) => (article.contentType || "article") === contentType);
-        return this.attachArticleViewCounts(filteredArticles);
+        const withViews = await this.attachArticleViewCounts(filteredArticles);
+        const start = (page - 1) * limit;
+        return { data: withViews.slice(start, start + limit), count: withViews.length };
       } catch (error) {
         console.error("Error fetching articles from localStorage:", error);
-        return [];
+        return { data: [], count: 0 };
       }
     }
 
-    // Use Supabase
-    // NOTE: 'content' (full HTML body) is intentionally excluded here to minimise egress.
-    // It is fetched on-demand only when a single article is opened (see fetchArticleById).
     try {
+      const fromRow = (page - 1) * limit;
+      const toRow = fromRow + limit - 1;
+
       let mainQuery = this.supabase!
         .from(DATABASE_CONFIG.TABLES.ARTICLES)
         .select(
-          "id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived"
+          "id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived",
+          { count: "exact" }
         )
         .eq("is_archived", false)
         .order("created_at", { ascending: false })
-        .range(0, 99);
+        .range(fromRow, toRow);
 
       if (contentType !== "all") {
         mainQuery = mainQuery.eq("content_type", contentType);
       }
 
-      // Sidebar categories can fall outside the main .range(0,99) window if their latest
-      // item is older than the 100 most recent articles across ALL categories. This has
-      // broken sidebar sections before (see .range(0,49) incident) — do not remove this 
-      // without ensuring sidebar sections still populate correctly.
       let sidebarQuery: any = null;
       if (contentType === "all") {
         sidebarQuery = this.supabase!
@@ -379,15 +379,66 @@ class RemoteApiService {
 
       const allRows = [...(mainResult.data || []), ...(sidebarResult.data || [])];
       
-      // Deduplicate by ID to prevent any article from appearing twice in the merged result
       const uniqueRows = Array.from(new Map(allRows.map(r => [r.id, r])).values());
       
-      // Re-sort descending by created_at to maintain correct chronological timeline
       uniqueRows.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-      return this.attachArticleViewCounts(uniqueRows.map((row) => this.mapArticleFromDb(row)));
+      const mapped = uniqueRows.map((row) => {
+        const isMain = mainResult.data && mainResult.data.some((mr: any) => mr.id === row.id);
+        const article = this.mapArticleFromDb(row);
+        if (!isMain) {
+          (article as any)._isSupplementary = true;
+        }
+        return article;
+      });
+
+      return {
+        data: await this.attachArticleViewCounts(mapped),
+        count: mainResult.count || 0
+      };
     } catch (error) {
       console.error("Error in fetchArticles:", error);
+      return { data: [], count: 0 };
+    }
+  }
+
+  /**
+   * Fetch top N popular articles based on global view counts.
+   */
+  async fetchPopularArticles(limit: number = 5): Promise<Article[]> {
+    if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
+      const fetchResult = await this.fetchArticles("all", 1, 100);
+      return fetchResult.data
+        .sort((a, b) => Number(b.viewCount || 0) - Number(a.viewCount || 0))
+        .slice(0, limit);
+    }
+
+    try {
+      const response = await fetch('/api/analytics?scope=articleCounts');
+      if (!response.ok) throw new Error('Analytics API failed');
+      const data = await response.json();
+      const viewCounts: Record<string, number> = data.viewCounts || {};
+
+      const sortedIds = Object.keys(viewCounts)
+        .sort((a, b) => viewCounts[b] - viewCounts[a])
+        .slice(0, limit);
+
+      if (sortedIds.length === 0) return [];
+
+      const { data: articles, error } = await this.supabase!
+        .from(DATABASE_CONFIG.TABLES.ARTICLES)
+        .select("id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived")
+        .in('id', sortedIds)
+        .eq("is_archived", false);
+
+      if (error) throw error;
+
+      const mapped = (articles || []).map(row => this.mapArticleFromDb(row));
+      return mapped
+        .map(a => ({ ...a, viewCount: viewCounts[a.id] }))
+        .sort((a, b) => Number(b.viewCount) - Number(a.viewCount));
+    } catch (error) {
+      console.error("Error in fetchPopularArticles:", error);
       return [];
     }
   }
@@ -398,7 +449,8 @@ class RemoteApiService {
    */
   async fetchArticleById(id: string): Promise<Article | null> {
     if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
-      const articles = await this.fetchArticles();
+      const fetchResult = await this.fetchArticles();
+      const articles = fetchResult.data;
       return articles.find((a) => a.id === id) ?? null;
     }
 
@@ -428,7 +480,8 @@ class RemoteApiService {
   async insertArticle(article: Omit<Article, "id">): Promise<Article | null> {
     if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
       try {
-        const articles = await this.fetchArticles();
+        const fetchResult = await this.fetchArticles();
+        const articles = fetchResult.data;
         const newArticle = {
           ...article,
           id: Date.now().toString(),
@@ -481,7 +534,8 @@ class RemoteApiService {
   ): Promise<Article | null> {
     if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
       try {
-        const articles = await this.fetchArticles();
+        const fetchResult = await this.fetchArticles();
+        const articles = fetchResult.data;
         const index = articles.findIndex((a) => a.id === id);
 
         if (index === -1) {
@@ -523,7 +577,8 @@ class RemoteApiService {
   async deleteArticle(id: string): Promise<boolean> {
     if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
       try {
-        const articles = await this.fetchArticles();
+        const fetchResult = await this.fetchArticles();
+        const articles = fetchResult.data;
         const filtered = articles.filter((a) => a.id !== id);
         localStorage.setItem(this.LOCAL_STORAGE_KEY, JSON.stringify(filtered));
         return true;
@@ -565,7 +620,8 @@ class RemoteApiService {
           comments = comments.filter((c) => c.articleId === articleId);
         }
 
-        const articles = await this.fetchArticles();
+        const fetchResult = await this.fetchArticles();
+        const articles = fetchResult.data;
         comments = comments.map((comment) => {
           const article = articles.find((a) => a.id === comment.articleId);
           return {
@@ -660,7 +716,8 @@ class RemoteApiService {
           JSON.stringify(comments),
         );
 
-        const articles = await this.fetchArticles();
+        const fetchResult = await this.fetchArticles();
+        const articles = fetchResult.data;
         const article = articles.find((a) => a.id === comment.articleId);
         if (article) {
           newComment.articleTitle = article.title;
