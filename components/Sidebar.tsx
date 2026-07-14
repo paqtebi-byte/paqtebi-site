@@ -91,7 +91,19 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({ articles = [], cust
         
         if (result.length < 4) {
           const needed = 4 - result.length;
-          const recent = articles.filter(a => !result.some(r => r.article.id === a.id)).slice(0, needed);
+          const recent = articles.filter(a => {
+            if (result.some(r => r.article.id === a.id)) return false;
+            
+            // Exclude if title is missing, empty, or exactly "Paqtebi.ge"
+            const isTitleInvalid = !a.title || a.title.trim() === '' || a.title.trim() === 'Paqtebi.ge';
+            
+            // Exclude if content/body is missing or empty. 
+            // Since `content` isn't always fetched in the list API to save egress, we fall back to checking `summary` as a reliable indicator of an empty draft.
+            const isContentInvalid = (!a.content || a.content.trim() === '') && (!a.summary || a.summary.trim() === '');
+            
+            return !isTitleInvalid && !isContentInvalid;
+          }).slice(0, needed);
+          
           recent.forEach(r => {
             result.push({ article: r, commentCount: 0 });
           });
