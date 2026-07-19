@@ -61,7 +61,7 @@ export const useArticles = () => {
     }
   }, []);
 
-  const loadAllNews = useCallback((p: number = 1) => loadNews("all", p), [loadNews]);
+  const loadAllNews = useCallback((p: number = 1) => loadNews("all", p, 21), [loadNews]);
   const loadArticleNews = useCallback((p: number = 1) => loadNews("article", p), [loadNews]);
 
   useEffect(() => {
