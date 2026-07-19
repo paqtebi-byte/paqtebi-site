@@ -527,7 +527,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
       {viewMode === "home" && (
         loading ? (
           <div className="w-full animate-pulse bg-gray-200 dark:bg-gray-900" style={{ height: "400px" }} />
-        ) : heroArticle ? (
+        ) : (
         <section
           className={`relative w-full overflow-hidden group ${heroHasArticleContent ? "cursor-pointer" : ""}`}
           style={{ height: "400px" }}
@@ -535,8 +535,11 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
         >
           <div className="absolute inset-0">
             <LazyImage
-              src={heroArticle.imageUrl}
-              alt={heroArticle.title}
+              src={
+                heroArticle?.imageUrl ||
+                "https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=2070&auto=format&fit=crop"
+              }
+              alt={heroArticle?.title || "Main Hero"}
               className="w-full h-full transition-transform duration-700 group-hover:scale-105"
               loading="eager"
               priority
@@ -572,7 +575,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
             </div>
           </div>
         </section>
-        ) : null
+        )
       )}
 
       {/* ── MAIN CONTENT ─────────────────────────────────────────── */}
