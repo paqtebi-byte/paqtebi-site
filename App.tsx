@@ -527,7 +527,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
       {viewMode === "home" && (
         loading ? (
           <div className="w-full animate-pulse bg-gray-200 dark:bg-gray-900" style={{ height: "400px" }} />
-        ) : (
+        ) : heroArticle ? (
         <section
           className={`relative w-full overflow-hidden group ${heroHasArticleContent ? "cursor-pointer" : ""}`}
           style={{ height: "400px" }}
@@ -535,11 +535,8 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
         >
           <div className="absolute inset-0">
             <LazyImage
-              src={
-                heroArticle?.imageUrl ||
-                "https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=2070&auto=format&fit=crop"
-              }
-              alt={heroArticle?.title || "Main Hero"}
+              src={heroArticle.imageUrl}
+              alt={heroArticle.title}
               className="w-full h-full transition-transform duration-700 group-hover:scale-105"
               loading="eager"
               priority
@@ -561,10 +558,10 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
             <div className="max-w-screen-xl mx-auto">
               <div className="max-w-3xl">
                 <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-white leading-snug font-serif mb-4 tracking-normal">
-                  {heroArticle?.title || "თანამედროვე სამყაროს გლობალური გამოწვევები და ახალი პერსპექტივები"}
+                  {heroArticle.title}
                 </h1>
                 <p className="text-gray-200 text-lg font-light leading-relaxed line-clamp-2 mb-6">
-                  {stripHtmlToText(heroArticle?.summary || "მიიღეთ ობიექტური და გადამოწმებული ინფორმაცია მიმდინარე მოვლენების შესახებ.")}
+                  {stripHtmlToText(heroArticle.summary || "")}
                 </p>
                 {heroHasArticleContent && (
                   <div className="inline-flex items-center gap-2 text-white font-bold text-sm bg-white/10 hover:bg-white/20 backdrop-blur-sm px-5 py-2.5 rounded-full border border-white/20 transition-all">
@@ -575,7 +572,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
             </div>
           </div>
         </section>
-        )
+        ) : null
       )}
 
       {/* ── MAIN CONTENT ─────────────────────────────────────────── */}

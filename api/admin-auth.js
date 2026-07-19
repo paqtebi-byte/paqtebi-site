@@ -251,6 +251,32 @@ async function handleListAdmins(body, response) {
   return json(response, 200, { success: true, admins });
 }
 
+async function handleListPublicUsers(body, response) {
+  try {
+    const admin = await requireAdmin(body.token, "admin");
+    if (!admin) {
+      return json(response, 403, { success: false, message: "მხოლოდ ადმინებს აქვთ წვდომა" });
+    }
+
+    console.log("[handleListPublicUsers] Fetching users with role=user...");
+    
+    const users = await supabaseRequest(
+      "users?role=eq.user&select=id,username,email,created_at&order=created_at.desc",
+    );
+    
+    console.log(`[handleListPublicUsers] Successfully fetched ${Array.isArray(users) ? users.length : 0} public users. Response type: ${typeof users}`);
+    
+    return json(response, 200, { success: true, users: Array.isArray(users) ? users : [] });
+  } catch (error) {
+    console.error("[handleListPublicUsers] Error fetching public users:", error);
+    return json(response, 500, { 
+      success: false, 
+      message: "მომხმარებლების ჩატვირთვა ვერ მოხერხდა", 
+      error: error.message || "Unknown error"
+    });
+  }
+}
+
 async function handleCreateAdmin(body, response) {
   const owner = await requireAdmin(body.token, "owner");
   if (!owner) return json(response, 403, { success: false, message: "მხოლოდ owner-ს შეუძლია ადმინის დამატება" });
@@ -317,6 +343,45 @@ async function handleCreateAdmin(body, response) {
   });
 
   return json(response, 200, { success: true, admin: rows?.[0] });
+}
+
+async function handleRegisterPublic(body, response) {
+  const username = String(body.username || "").trim();
+  const email = String(body.email || "").trim() || null;
+  const password = String(body.password || "");
+
+  if (!username) {
+    return json(response, 400, { success: false, message: "Username is required" });
+  }
+
+  try {
+    const existing = await findAdminByLogin(username);
+    if (existing) {
+      return json(response, 409, { success: false, message: "User already exists" });
+    }
+
+    const { supabaseUrl, serviceKey } = getConfig();
+    let authUserId = crypto.randomUUID();
+
+    const rows = await supabaseRequest("users?select=id,username,email,role,created_at", {
+      method: "POST",
+      body: JSON.stringify({
+        id: authUserId,
+        username,
+        email,
+        password_hash: hashPassword(password),
+        password: null,
+        role: "user",
+        created_at: new Date().toISOString(),
+      }),
+      headers: { prefer: "return=representation" },
+    });
+
+    return json(response, 200, { success: true, user: rows?.[0] });
+  } catch (error) {
+    console.error("handleRegisterPublic error", error);
+    return json(response, 500, { success: false, message: "Failed to register user" });
+  }
 }
 
 async function handleUpdateRole(body, response) {
@@ -394,7 +459,9 @@ export default async function handler(request, response) {
     if (body.action === "session") return handleSession(body, response);
     if (body.action === "resolveLogin") return handleResolveLogin(body, response);
     if (body.action === "listAdmins") return handleListAdmins(body, response);
+    if (body.action === "listPublicUsers") return handleListPublicUsers(body, response);
     if (body.action === "createAdmin") return handleCreateAdmin(body, response);
+    if (body.action === "registerPublic") return handleRegisterPublic(body, response);
     if (body.action === "updateRole") return handleUpdateRole(body, response);
     if (body.action === "deleteAdmin") return handleDeleteAdmin(body, response);
     return json(response, 400, { success: false, message: "Unknown action" });

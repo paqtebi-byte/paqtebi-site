@@ -309,6 +309,20 @@ export const listAdminUsers = async (): Promise<AdminUserRecord[]> => {
   return data.admins;
 };
 
+export const listPublicUsers = async (): Promise<AdminUserRecord[]> => {
+  const token = getAdminToken();
+  if (!token) return [];
+  try {
+    const data = await callAdminApi<{ success: boolean; users: AdminUserRecord[] }>({
+      action: 'listPublicUsers',
+      token,
+    });
+    return data.users || [];
+  } catch {
+    return [];
+  }
+};
+
 export const createAdminUser = async (
   input: Pick<AdminUserRecord, 'username' | 'email' | 'role'> & { password: string },
 ): Promise<AdminUserRecord> => {
@@ -528,21 +542,34 @@ const persistOAuthPublicUser = (authUser: SupabaseAuthUser): User => {
   return saveCurrentPublicUser(safeUser);
 };
 
-export const registerPublicUser = (user: User): AuthResponse => {
-  const users = getRegisteredUsers();
+export const registerPublicUser = async (user: User): Promise<AuthResponse> => {
+  try {
+    const response = await fetch('/api/admin-auth', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        action: 'registerPublic',
+        username: user.username,
+        email: user.email || '',
+        password: user.password
+      })
+    });
 
-  if (users.some(u => u.username === user.username)) {
-    return { success: false, message: 'მომხმარებელი ამ სახელით უკვე არსებობს' };
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      return { success: false, message: data.message || 'რეგისტრაცია ვერ მოხერხდა' };
+    }
+
+    const safeUser = { username: user.username, email: user.email };
+    
+    // Auto login locally
+    saveCurrentPublicUser(safeUser);
+
+    return { success: true, message: 'რეგისტრაცია წარმატებით დასრულდა', user: safeUser };
+  } catch (error) {
+    return { success: false, message: 'კავშირის შეცდომა. სცადეთ მოგვიანებით.' };
   }
-
-  users.push(user);
-  localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
-
-  // Auto login
-  const safeUser = { username: user.username, email: user.email };
-  saveCurrentPublicUser(safeUser);
-
-  return { success: true, message: 'რეგისტრაცია წარმატებით დასრულდა', user: safeUser };
 };
 
 export const loginPublicUser = (username: string, password: string): AuthResponse => {

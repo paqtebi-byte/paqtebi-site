@@ -8,6 +8,7 @@ import {
   logoutAdmin,
   getCurrentAdmin,
   listAdminUsers,
+  listPublicUsers,
   createAdminUser,
   updateAdminUserRole,
   deleteAdminUser,
@@ -78,6 +79,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
   const [adminForm, setAdminForm] = useState({ username: '', email: '', password: '', role: 'admin' as AdminUserRecord['role'] });
   const [isLoadingAdmins, setIsLoadingAdmins] = useState(false);
+  const [publicUsers, setPublicUsers] = useState<any[]>([]);
+  const [isLoadingPublicUsers, setIsLoadingPublicUsers] = useState(false);
   const [isSavingAdmin, setIsSavingAdmin] = useState(false);
   const currentAdmin = getCurrentAdmin();
   const isOwner = currentAdmin?.role === 'owner';
@@ -154,7 +157,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       });
     };
 
-    // Handle cross-tab localStorage changes (storage event fires in OTHER tabs when localStorage changes)
     const handleStorageEvent = (e: StorageEvent) => {
       if (e.key === 'paqtebi_ad_placement') {
         refreshAdViews();
@@ -163,7 +165,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       }
     };
 
-    // Also refresh views whenever ADS tab is opened
     if (activeTab === 'ADS') {
       refreshAdViews();
     }
@@ -191,12 +192,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const refreshAdmins = async () => {
     if (!isOwner) return;
     setIsLoadingAdmins(true);
+    setIsLoadingPublicUsers(true);
     try {
-      setUsers(await listAdminUsers());
+      const [adminsData, publicUsersData] = await Promise.all([
+        listAdminUsers(),
+        listPublicUsers()
+      ]);
+      setUsers(adminsData);
+      setPublicUsers(publicUsersData);
     } catch (error) {
-      addToast(error instanceof Error ? error.message : 'ადმინების ჩატვირთვა ვერ მოხერხდა', 'error');
+      addToast(error instanceof Error ? error.message : 'მომხმარებლების ჩატვირთვა ვერ მოხერხდა', 'error');
     } finally {
       setIsLoadingAdmins(false);
+      setIsLoadingPublicUsers(false);
     }
   };
 
@@ -305,7 +313,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     }
     else if (article.contentType === 'live') setActiveTab('LIVE');
     else setActiveTab('ARTICLES');
-    // Store the original ID so handleSave knows to UPDATE instead of INSERT
     setCurrentArticle({ ...article, _originalId: article.id } as any);
     setIsEditing(true);
   };
@@ -330,7 +337,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     const needsArticleBody = layout !== 'hero';
     const hasContent = Boolean(currentArticle.content?.replace(/<[^>]*>/g, '').trim());
     const hasVideoUrl = Boolean(currentArticle.videoUrl?.trim());
-    // If _originalId exists, this is an EDIT operation
     const originalId: string | undefined = (currentArticle as any)._originalId;
     const isEditing = Boolean(originalId);
 
@@ -374,7 +380,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       if (!currentArticle.imageUrl && layout !== 'hero') {
         currentArticle.imageUrl = getRandomNewsImage();
       }
-      // Remove internal _originalId before saving
       const { _originalId, ...articleData } = currentArticle as any;
       const safeArticle = {
         ...articleData,
@@ -418,7 +423,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       addToast('მხოლოდ სურათის ფაილები დასაშვებია', 'error');
       return;
@@ -428,7 +432,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     const img = new window.Image();
 
     img.onload = async () => {
-      // Compress: max 1200x800, JPEG 75%
       const MAX_W = 1200;
       const MAX_H = 800;
       let w = img.naturalWidth;
@@ -494,7 +497,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         setCurrentAd((prev) => ({ ...prev, imageUrl: uploaded.secureUrl }));
         addToast('რეკლამის სურათი Cloudinary-ზე აიტვირთა (' + Math.round((uploaded.bytes || compressed.length) / 1024) + ' KB)', 'success');
       } catch (error) {
-        // Fallback: store base64 if Cloudinary fails
         setCurrentAd((prev) => ({ ...prev, imageUrl: compressed }));
         addToast(error instanceof Error ? error.message : 'Cloudinary ატვირთვა ვერ მოხერხდა, ლოკალური სურათი შეინახა', 'error');
       }
@@ -628,7 +630,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         className="hidden md:flex w-64 flex-col flex-shrink-0 z-20"
         style={{ background: 'linear-gradient(180deg, #0d0d0d 0%, #141414 100%)', borderRight: '1px solid rgba(255,255,255,0.05)' }}
       >
-        {/* Logo */}
         <div className="p-6 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <BrandLogo className="h-10 w-12 flex-shrink-0" />
           <div>
@@ -637,7 +638,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           </div>
         </div>
 
-        {/* Admin badge */}
         <div className="mx-4 mt-4 mb-2 flex items-center gap-2.5 px-3 py-2.5 rounded-xl" style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.15)' }}>
           <Shield size={14} className="text-news-accent flex-shrink-0" />
           <div>
@@ -655,7 +655,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           View Site
         </button>
 
-        {/* Nav */}
         <nav className="flex-1 py-3 overflow-y-auto">
           <div className="px-4 py-2 text-[10px] text-gray-700 uppercase tracking-widest font-bold">მენიუ</div>
           {NAV_CONFIG.map(({ tab, icon: Icon, label }) => (
@@ -671,7 +670,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           ))}
         </nav>
 
-        {/* Logout */}
         <div className="p-4" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
           <button
             onClick={handleLogout}
@@ -732,7 +730,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       {/* ── MAIN ──────────────────────────────────────────────── */}
       <main className="flex-1 flex flex-col overflow-hidden pt-14 md:pt-0">
 
-        {/* Top Bar */}
         <header className="bg-white flex-shrink-0 flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
           <div>
             <h1 className="text-xl font-bold text-gray-900">{tabLabel}</h1>
@@ -764,7 +761,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               <Bell size={17} />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-news-accent rounded-full" />
             </button>
-            {/* Avatar dropdown */}
             <div className="relative">
               <button
                 onClick={() => setIsAvatarDropdownOpen((o) => !o)}
@@ -776,12 +772,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
               {isAvatarDropdownOpen && (
                 <>
-                  {/* Backdrop */}
                   <div
                     className="fixed inset-0 z-40"
                     onClick={() => setIsAvatarDropdownOpen(false)}
                   />
-                  {/* Menu */}
                   <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl border border-gray-100 shadow-xl py-1.5 z-50 animate-fade-up">
                     <div className="px-4 py-2.5 border-b border-gray-100">
                       <div className="text-xs font-bold text-gray-800 truncate">
@@ -805,17 +799,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           </div>
         </header>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 md:p-8">
 
           {/* ── ANALYTICS TAB ────────────────────────────────── */}
           {activeTab === 'ANALYTICS' && (
             <div className="space-y-8 animate-fade-up">
-              {/* Stat Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger">
                 {[
                   { label: 'სტატიები', value: analytics.totalArticles, icon: FileText, color: '#3b82f6', bg: '#eff6ff', change: '+12%', up: true },
-                  { label: 'მომხმარებლები', value: analytics.totalUsers, icon: Users, color: '#8b5cf6', bg: '#f5f3ff', change: '+5%', up: true },
+                  { label: 'მომხმარებლები', value: publicUsers.length > 0 ? publicUsers.length : 0, icon: Users, color: '#8b5cf6', bg: '#f5f3ff', change: '+5%', up: true },
                   { label: 'კომენტარები', value: analytics.totalComments, icon: MessageSquare, color: '#f59e0b', bg: '#fffbeb', change: '0%', up: false, tab: 'COMMENTS' },
                   { label: 'ნახვები', value: analytics.totalViews.toLocaleString(), icon: Eye, color: '#10b981', bg: '#f0fdf4', change: '+24%', up: true },
                 ].map((stat, i) => (
@@ -1595,6 +1587,58 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         <td colSpan={4} className="py-16 text-center text-gray-400">
                           <Users size={36} className="mx-auto mb-3 text-gray-200" />
                           {isLoadingAdmins ? 'იტვირთება...' : 'ადმინები არ არის'}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Public Users Table */}
+              <div className="bg-white rounded-2xl overflow-hidden mt-6" style={{ border: '1px solid #e5e7eb' }}>
+                <div className="flex items-center gap-3 px-6 py-4" style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <Users size={18} className="text-blue-500" />
+                  <h3 className="font-bold text-gray-800">რეგისტრირებული მომხმარებლები</h3>
+                  <span className="badge bg-blue-100 text-blue-700 ml-1">{publicUsers.length} სულ</span>
+                </div>
+
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>მომხმარებელი</th>
+                      <th>ელ-ფოსტა</th>
+                      <th>როლი</th>
+                      <th style={{ textAlign: 'right' }}>რეგისტრაციის თარიღი</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {publicUsers.map((user, idx) => (
+                      <tr key={user.id || idx}>
+                        <td>
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+                              style={{ background: `hsl(${(idx * 50 + 100) % 360},60%,45%)` }}
+                            >
+                              {user.username[0]?.toUpperCase()}
+                            </div>
+                            <span className="font-semibold text-gray-800">{user.username}</span>
+                          </div>
+                        </td>
+                        <td><span className="text-gray-500">{user.email || '-'}</span></td>
+                        <td>
+                          <span className="badge bg-gray-100 text-gray-600">მომხმარებელი</span>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <span className="text-xs text-gray-400">{user.created_at || user.createdAt ? new Date(user.created_at || user.createdAt || '').toLocaleDateString('ka-GE') : '-'}</span>
+                        </td>
+                      </tr>
+                    ))}
+                    {(publicUsers.length === 0 || isLoadingPublicUsers) && (
+                      <tr>
+                        <td colSpan={4} className="py-16 text-center text-gray-400">
+                          <Users size={36} className="mx-auto mb-3 text-gray-200" />
+                          {isLoadingPublicUsers ? 'იტვირთება...' : 'მომხმარებლები არ არის'}
                         </td>
                       </tr>
                     )}

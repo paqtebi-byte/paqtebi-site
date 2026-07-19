@@ -9,39 +9,30 @@ export interface CurrencyData {
   eur: CurrencyRate | null;
 }
 
-const NBG_API_URL = "https://nbg.gov.ge/gw/api/ct/monetarypolicy/currencies/ka/json";
-
 /**
- * Fetches current exchange rates from the National Bank of Georgia (NBG).
- * NBG updates rates once per day (published in the afternoon, effective the next day).
+ * Fetches current exchange rates via the server-side proxy (/api/currency-proxy).
+ * Direct browser requests to nbg.gov.ge are blocked by CORS, so we route
+ * through our backend which fetches on the server and returns the result.
  */
 export const fetchCurrencyData = async (): Promise<CurrencyData | null> => {
   try {
-    const response = await fetch(NBG_API_URL);
+    const response = await fetch("/api/currency-proxy");
     if (!response.ok) {
-      throw new Error(`NBG API request failed with status ${response.status}`);
+      throw new Error(`Currency proxy responded with status ${response.status}`);
     }
 
     const data = await response.json();
-    if (!data || !data.length || !data[0].currencies) {
-      throw new Error("Invalid NBG API response format");
-    }
 
-    const currencies = data[0].currencies as any[];
-    const usdItem = currencies.find(c => c.code === "USD");
-    const eurItem = currencies.find(c => c.code === "EUR");
-
-    if (!usdItem && !eurItem) {
-      throw new Error("USD and EUR rates not found in NBG response");
+    if (!data || (!data.usd && !data.eur)) {
+      throw new Error("Invalid currency proxy response");
     }
 
     return {
-      usd: usdItem ? { code: "USD", rate: usdItem.rate, diff: usdItem.diff } : null,
-      eur: eurItem ? { code: "EUR", rate: eurItem.rate, diff: eurItem.diff } : null,
+      usd: data.usd ?? null,
+      eur: data.eur ?? null,
     };
   } catch (error) {
     console.error("Error fetching currency data:", error);
-    // Return null to allow the UI to handle the error state gracefully
     return null;
   }
 };
