@@ -228,11 +228,11 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
 
   const articleOnlyItems = articles.filter((a) => (a.contentType || "article") === "article");
   const explicitHeroArticle = articleOnlyItems.find((a) => a.layout === "hero");
-  const heroArticle = explicitHeroArticle;
+  const heroArticle = explicitHeroArticle || articleOnlyItems[0];
   const heroHasArticleContent = Boolean(heroArticle?.content?.replace(/<[^>]*>/g, "").trim());
   const sidebarArticles = articleOnlyItems.filter((a) => a.layout === "sidebar");
   const mainFeedArticles = articleOnlyItems.filter(
-    (a) => (a.layout === "standard" || !a.layout) && !(a as any)._isSupplementary && (explicitHeroArticle ? a.id !== explicitHeroArticle.id : true)
+    (a) => (a.layout === "standard" || !a.layout) && !(a as any)._isSupplementary && (heroArticle ? a.id !== heroArticle.id : true)
   );
 
   const getFilteredArticles = () => {
@@ -527,7 +527,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
       {viewMode === "home" && (
         loading ? (
           <div className="w-full animate-pulse bg-gray-200 dark:bg-gray-900" style={{ height: "400px" }} />
-        ) : (
+        ) : heroArticle ? (
         <section
           className={`relative w-full overflow-hidden group ${heroHasArticleContent ? "cursor-pointer" : ""}`}
           style={{ height: "400px" }}
@@ -575,7 +575,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
             </div>
           </div>
         </section>
-        )
+        ) : null
       )}
 
       {/* ── MAIN CONTENT ─────────────────────────────────────────── */}
