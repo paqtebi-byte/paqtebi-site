@@ -540,7 +540,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
                 "https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=2070&auto=format&fit=crop"
               }
               alt={heroArticle?.title || "Main Hero"}
-              className="w-full h-full transition-transform duration-700 group-hover:scale-105"
+              className="w-full h-full transition-transform duration-700 "
               loading="eager"
               priority
             />
@@ -1080,4 +1080,5 @@ const App: React.FC = () => (
 );
 
 export default App;
+
 
