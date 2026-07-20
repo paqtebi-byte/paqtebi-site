@@ -833,8 +833,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               {/* Quick actions */}
               <div>
                 <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">სწრაფი მოქმედებები</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                   {[
+                    { icon: Monitor, label: 'მთავარი ბანერი', desc: 'შეცვალე ტექსტი/სურათი', action: () => {
+                      const hero = articles.find(a => a.layout === 'hero');
+                      if (hero) {
+                        handleEdit(hero);
+                      } else {
+                        switchTab('ARTICLES');
+                        handleCreateNew('article');
+                        setTimeout(() => setCurrentArticle(prev => ({...prev, layout: 'hero'})), 0);
+                      }
+                    }, color: '#0ea5e9', bg: '#e0f2fe' },
                     { icon: Plus, label: 'ახალი სტატია', desc: 'გამოაქვეყნე ახალი მასალა', action: () => { switchTab('ARTICLES'); handleCreateNew('article'); }, color: '#dc2626', bg: '#fef2f2' },
                     { icon: Users, label: 'მომხმარებლები', desc: 'ნახე დარეგისტრირებულები', action: () => switchTab('USERS'), color: '#8b5cf6', bg: '#f5f3ff' },
                     { icon: Activity, label: 'Breaking News', desc: 'განაახლე ახალი ამბები', action: () => switchTab('ARTICLES'), color: '#f59e0b', bg: '#fffbeb' },
