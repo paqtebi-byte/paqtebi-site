@@ -500,7 +500,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
       {/* ── BREAKING NEWS TICKER ────────────────────────────────── */}
       <div className="bg-news-black text-white py-2.5 overflow-hidden flex-shrink-0">
         <div className="max-w-screen-xl mx-auto px-4 flex items-center gap-3">
-          <div className="flex items-center gap-1.5 bg-news-accent px-3 py-1 text-[10px] font-black uppercase tracking-wider shrink-0 rounded-sm animate-pulse-slow">
+          <div className="flex items-center gap-1.5 bg-news-accent px-3 py-1 text-[10px] font-black uppercase tracking-wider shrink-0 rounded-sm ">
             <Bell size={10} />
             LIVE
           </div>
@@ -1080,3 +1080,4 @@ const App: React.FC = () => (
 );
 
 export default App;
+
