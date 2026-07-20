@@ -31,15 +31,9 @@ class ApiService {
 
     const request = RemoteApiService.fetchArticles(contentType, page, limit)
       .then((result) => {
-        const sanitizedData = result.data.map(article => {
-          if (article.layout === 'hero' && article.imageUrl?.includes('picsum.photos')) {
-            return { ...article, imageUrl: '' };
-          }
-          return article;
-        });
-        this.articleCache.set(key, { data: sanitizedData, count: result.count, timestamp: Date.now() });
+        this.articleCache.set(key, { data: result.data, count: result.count, timestamp: Date.now() });
         this.articleRequests.delete(key);
-        return { data: sanitizedData, count: result.count };
+        return { data: result.data, count: result.count };
       })
       .catch((error) => {
         this.articleRequests.delete(key);

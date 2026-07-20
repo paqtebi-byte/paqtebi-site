@@ -503,14 +503,16 @@ class RemoteApiService {
 
     // Use Supabase — `id` is deleted in mapArticleToDb, so Supabase auto-generates a UUID
     try {
+      const payload = {
+        ...this.mapArticleToDb(article as Partial<Article>),
+        created_at: article.layout === 'hero' 
+          ? new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000).toISOString() 
+          : new Date().toISOString(),
+      };
+
       const { data, error } = await this.supabase!
         .from(DATABASE_CONFIG.TABLES.ARTICLES)
-        .insert([
-          {
-            ...this.mapArticleToDb(article as Partial<Article>),
-            created_at: new Date().toISOString(),
-          },
-        ])
+        .insert([payload])
         .select("id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived")
         .single();
 
@@ -553,9 +555,14 @@ class RemoteApiService {
 
     // Use Supabase — `id` is deleted in mapArticleToDb, passed only in .eq()
     try {
+      const updatePayload = this.mapArticleToDb(article);
+      if (article.layout === 'hero') {
+        updatePayload.created_at = new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000).toISOString();
+      }
+
       const { data, error } = await this.supabase!
         .from(DATABASE_CONFIG.TABLES.ARTICLES)
-        .update(this.mapArticleToDb(article))
+        .update(updatePayload)
         .eq("id", id)
         .select("id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived")
         .single();
