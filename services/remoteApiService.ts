@@ -67,6 +67,10 @@ class RemoteApiService {
       created_at,
       // id is always stripped — Supabase generates it on insert, passed via .eq() on update
       id: _id,
+      // Strip client-only computed fields that don't exist in the DB
+      viewCount: _viewCount,
+      view_count: _view_count,
+      _isSupplementary,
       // rest: title, summary, content, author, category, category_slug, date, layout — stay as-is
       ...rest
     } = article as any;
