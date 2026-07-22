@@ -305,7 +305,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     setIsEditing(true);
   };
 
-  const handleEdit = (article: Article) => {
+  const handleEdit = async (article: Article) => {
     if (article.contentType === 'video') {
       if (article.category === 'პოდკასტები') setActiveTab('PODCASTS');
       else if (article.category === 'საინტერესო') setActiveTab('INTERESTING');
@@ -313,7 +313,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     }
     else if (article.contentType === 'live') setActiveTab('LIVE');
     else setActiveTab('ARTICLES');
-    setCurrentArticle({ ...article, _originalId: article.id } as any);
+
+    // The list-view articles don't include `content` (excluded from SELECT for performance).
+    // Fetch the full article so the editor is pre-filled with the existing content.
+    try {
+      const fullArticle = await apiService.fetchArticleById(article.id);
+      setCurrentArticle({ ...(fullArticle ?? article), _originalId: article.id } as any);
+    } catch {
+      // Fall back to the partial article if fetch fails
+      setCurrentArticle({ ...article, _originalId: article.id } as any);
+    }
+
     setIsEditing(true);
   };
 
