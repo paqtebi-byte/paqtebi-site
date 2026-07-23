@@ -70,7 +70,7 @@ const NAV_CONFIG: { tab: Tab; icon: any; label: string; badge?: string }[] = [
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const navigate = useNavigate();
-  const { articles, refreshLocalOnly, addArticle, updateArticle, removeArticle } = useArticlesContext();
+  const { adminArticles: articles, refreshLocalOnly, addArticle, updateArticle, removeArticle } = useArticlesContext();
   const { breakingNews, addTickerItem, removeTickerItem } = useBreakingNews();
   const { comments, removeComment, refreshComments } = useComments();
   const { addToast } = useToast();

@@ -26,6 +26,7 @@ const FEED_PAGE_SIZE = 20;
 
 export const useArticles = () => {
   const [articles, setArticles] = useState<Article[]>(() => articleCache["all_1_20"] ?? []);
+  const [adminArticles, setAdminArticles] = useState<Article[]>([]);
   const [heroArticle, setHeroArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState<boolean>(() => !articleCache["all_1_20"]);
   const [error, setError] = useState<string | null>(null);
@@ -126,9 +127,7 @@ export const useArticles = () => {
   const refreshLocalOnly = async () => {
     const result = await apiService.fetchArticles("all", 1, 1000);
     const localNews = result.data;
-    articleCache["all_1_20"] = localNews;
-    articleCache["article_1_20"] = localNews.filter((article) => (article.contentType || "article") === "article");
-    setArticles(localNews);
+    setAdminArticles(localNews);
 
     // Also refresh hero
     try {
@@ -146,6 +145,7 @@ export const useArticles = () => {
         throw new Error("Article was not saved");
       }
       await refreshLocalOnly();
+      await loadAllNews(1);
     } catch (error) {
       console.error("Error adding article:", error);
       throw error;
@@ -159,6 +159,7 @@ export const useArticles = () => {
         throw new Error("Article was not updated");
       }
       await refreshLocalOnly();
+      await loadAllNews(1);
     } catch (error) {
       console.error("Error updating article:", error);
       throw error;
@@ -168,6 +169,7 @@ export const useArticles = () => {
   const removeArticle = async (id: string) => {
     await apiService.deleteArticle(id);
     await refreshLocalOnly();
+    await loadAllNews(1);
   };
 
   // Initial Load
@@ -180,6 +182,7 @@ export const useArticles = () => {
 
   return {
     articles,
+    adminArticles,
     heroArticle,
     loading,
     error,

@@ -246,8 +246,10 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
   };
 
   const filteredFeedArticles = getFilteredArticles();
-  // Feed is already exactly FEED_PAGE_SIZE from the server — no client-side slicing needed
-  const displayedFeedArticles = filteredFeedArticles;
+  // Keep the public feed bounded even if another view accidentally supplies a larger collection.
+  const displayedFeedArticles = viewMode === "home"
+    ? filteredFeedArticles.slice(0, 20)
+    : filteredFeedArticles;
   const now = new Date();
   const timeStr = now.toLocaleTimeString("ka-GE", { hour: "2-digit", minute: "2-digit" });
   const dateStr = now.toLocaleDateString("ka-GE", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
