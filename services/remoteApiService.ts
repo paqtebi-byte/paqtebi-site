@@ -332,7 +332,7 @@ class RemoteApiService {
    * Fetch all articles from the database with pagination.
    * @param excludeId - Optional article ID to exclude from results (e.g. the hero article)
    */
-  async fetchArticles(contentType: Article["contentType"] | "all" = "all", page: number = 1, limit: number = 20, excludeId?: string): Promise<{ data: Article[], count: number }> {
+  async fetchArticles(contentType: Article["contentType"] | "all" = "all", page: number = 1, limit: number = 20, excludeId?: string, feedOnly: boolean = false): Promise<{ data: Article[], count: number }> {
     if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
       try {
         const stored = localStorage.getItem(this.LOCAL_STORAGE_KEY);
@@ -340,6 +340,12 @@ class RemoteApiService {
         let filteredArticles = contentType === "all"
           ? articles
           : articles.filter((article: Article) => (article.contentType || "article") === contentType);
+        if (feedOnly) {
+          filteredArticles = filteredArticles.filter((article: Article) =>
+            (article.contentType || "article") === "article" &&
+            (article.layout === "standard" || !article.layout)
+          );
+        }
         if (excludeId) {
           filteredArticles = filteredArticles.filter((a: Article) => a.id !== excludeId);
         }
@@ -366,7 +372,11 @@ class RemoteApiService {
         .order("created_at", { ascending: false })
         .range(fromRow, toRow);
 
-      if (contentType !== "all") {
+      if (feedOnly) {
+        mainQuery = mainQuery
+          .eq("content_type", "article")
+          .or("layout.eq.standard,layout.is.null");
+      } else if (contentType !== "all") {
         mainQuery = mainQuery.eq("content_type", contentType);
       }
 
@@ -376,6 +386,7 @@ class RemoteApiService {
       }
 
       let sidebarQuery: any = null;
+      let customSidebarQuery: any = null;
       if (contentType === "all") {
         sidebarQuery = this.supabase!
           .from(DATABASE_CONFIG.TABLES.ARTICLES)
@@ -386,11 +397,22 @@ class RemoteApiService {
           .in("category", ["ვიდეო რეპორტაჟები", "პოდკასტები", "საინტერესო"])
           .order("created_at", { ascending: false })
           .limit(15);
+
+        customSidebarQuery = this.supabase!
+          .from(DATABASE_CONFIG.TABLES.ARTICLES)
+          .select(
+            "id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived"
+          )
+          .eq("is_archived", false)
+          .eq("layout", "sidebar")
+          .order("created_at", { ascending: false })
+          .limit(15);
       }
 
-      const [mainResult, sidebarResult] = await Promise.all([
+      const [mainResult, sidebarResult, customSidebarResult] = await Promise.all([
         mainQuery,
-        sidebarQuery ? sidebarQuery : Promise.resolve({ data: null, error: null })
+        sidebarQuery ? sidebarQuery : Promise.resolve({ data: null, error: null }),
+        customSidebarQuery ? customSidebarQuery : Promise.resolve({ data: null, error: null })
       ]);
 
       if (mainResult.error) {
@@ -406,7 +428,10 @@ class RemoteApiService {
       if (excludeId) mainIdSet.add(excludeId); // also exclude hero from sidebar results
       
       // Sidebar articles: only add those that are NOT already in the main set
-      const sidebarRows = (sidebarResult.data || []);
+      const sidebarRows = [...(sidebarResult.data || []), ...(customSidebarResult.data || [])]
+        .filter((row: any, index: number, rows: any[]) =>
+          rows.findIndex((candidate: any) => candidate.id === row.id) === index
+        );
       const supplementaryArticles = sidebarRows
         .filter((row: any) => !mainIdSet.has(row.id))
         .map((row: any) => {

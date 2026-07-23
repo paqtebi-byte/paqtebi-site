@@ -33,8 +33,8 @@ export const useArticles = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const loadNews = useCallback(async (contentType: NonNullable<Article["contentType"]> | "all" = "all", pageParam: number = 1, limitParam: number = FEED_PAGE_SIZE, heroId?: string) => {
-    const cacheKey = `${contentType}_${pageParam}_${limitParam}_${heroId || ""}`;
+  const loadNews = useCallback(async (contentType: NonNullable<Article["contentType"]> | "all" = "all", pageParam: number = 1, limitParam: number = FEED_PAGE_SIZE, heroId?: string, feedOnly: boolean = false) => {
+    const cacheKey = `${contentType}_${pageParam}_${limitParam}_${heroId || ""}_${feedOnly ? "feed" : "all"}`;
     const cachedArticles = articleCache[cacheKey];
     if (cachedArticles) {
       setArticles(cachedArticles);
@@ -45,7 +45,7 @@ export const useArticles = () => {
 
     setError(null);
     try {
-      const result = await apiService.fetchArticles(contentType, pageParam, limitParam, heroId);
+      const result = await apiService.fetchArticles(contentType, pageParam, limitParam, heroId, feedOnly);
       const localNews = result.data;
       articleCache[cacheKey] = localNews;
       if (contentType === "all") {
@@ -57,7 +57,7 @@ export const useArticles = () => {
       setLoading(false);
     } catch (err) {
       setError("ვერ მოხერხდა ახალი ამბების ჩატვირთვა.");
-      const fallbackResult = await apiService.fetchArticles(contentType, pageParam, limitParam, heroId);
+      const fallbackResult = await apiService.fetchArticles(contentType, pageParam, limitParam, heroId, feedOnly);
       articleCache[cacheKey] = fallbackResult.data;
       setArticles(fallbackResult.data);
       setTotalPages(Math.ceil(fallbackResult.count / limitParam) || 1);
@@ -85,7 +85,7 @@ export const useArticles = () => {
     }
 
     // Step 2: Fetch feed articles, excluding the hero
-    await loadNews("all", p, FEED_PAGE_SIZE, currentHeroId);
+    await loadNews("all", p, FEED_PAGE_SIZE, currentHeroId, true);
   }, [loadNews]);
 
   const loadArticleNews = useCallback((p: number = 1) => loadNews("article", p), [loadNews]);
