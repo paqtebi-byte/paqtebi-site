@@ -11,16 +11,22 @@ class ApiService {
   private articleRequests = new Map<string, Promise<{ data: Article[]; count: number }>>();
   private readonly ARTICLE_CACHE_TTL = 300_000; // 5 minutes
 
+  // Hero article: separate cache so it's fully autonomous
+  private heroCache: { data: Article | null; timestamp: number } | null = null;
+  private heroRequest: Promise<Article | null> | null = null;
+
   private clearArticleCache() {
     this.articleCache.clear();
     this.articleRequests.clear();
+    this.heroCache = null;
+    this.heroRequest = null;
   }
 
   /**
    * Fetch all articles from storage with pagination
    */
-  async fetchArticles(contentType: Article["contentType"] | "all" = "all", page: number = 1, limit: number = 20): Promise<{ data: Article[], count: number }> {
-    const key = `${contentType || "all"}_${page}_${limit}`;
+  async fetchArticles(contentType: Article["contentType"] | "all" = "all", page: number = 1, limit: number = 20, excludeId?: string): Promise<{ data: Article[], count: number }> {
+    const key = `${contentType || "all"}_${page}_${limit}_${excludeId || ""}`;
     const cached = this.articleCache.get(key);
     if (cached && Date.now() - cached.timestamp < this.ARTICLE_CACHE_TTL) {
       return { data: cached.data, count: cached.count };
@@ -29,7 +35,7 @@ class ApiService {
     const pending = this.articleRequests.get(key);
     if (pending) return pending;
 
-    const request = RemoteApiService.fetchArticles(contentType, page, limit)
+    const request = RemoteApiService.fetchArticles(contentType, page, limit, excludeId)
       .then((result) => {
         this.articleCache.set(key, { data: result.data, count: result.count, timestamp: Date.now() });
         this.articleRequests.delete(key);
@@ -41,6 +47,32 @@ class ApiService {
       });
 
     this.articleRequests.set(key, request);
+    return request;
+  }
+
+  /**
+   * Fetch the hero article independently from the feed.
+   * Cached separately with its own TTL.
+   */
+  async fetchHeroArticle(): Promise<Article | null> {
+    if (this.heroCache && Date.now() - this.heroCache.timestamp < this.ARTICLE_CACHE_TTL) {
+      return this.heroCache.data;
+    }
+
+    if (this.heroRequest) return this.heroRequest;
+
+    const request = RemoteApiService.fetchHeroArticle()
+      .then((hero) => {
+        this.heroCache = { data: hero, timestamp: Date.now() };
+        this.heroRequest = null;
+        return hero;
+      })
+      .catch((error) => {
+        this.heroRequest = null;
+        throw error;
+      });
+
+    this.heroRequest = request;
     return request;
   }
 

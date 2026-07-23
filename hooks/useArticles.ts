@@ -21,15 +21,19 @@ const applyViewCountUpdate = (
   };
 });
 
+/** Number of articles displayed in the main feed per page (excluding hero) */
+const FEED_PAGE_SIZE = 20;
+
 export const useArticles = () => {
   const [articles, setArticles] = useState<Article[]>(() => articleCache["all_1_20"] ?? []);
+  const [heroArticle, setHeroArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState<boolean>(() => !articleCache["all_1_20"]);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const loadNews = useCallback(async (contentType: NonNullable<Article["contentType"]> | "all" = "all", pageParam: number = 1, limitParam: number = 20) => {
-    const cacheKey = `${contentType}_${pageParam}_${limitParam}`;
+  const loadNews = useCallback(async (contentType: NonNullable<Article["contentType"]> | "all" = "all", pageParam: number = 1, limitParam: number = FEED_PAGE_SIZE, heroId?: string) => {
+    const cacheKey = `${contentType}_${pageParam}_${limitParam}_${heroId || ""}`;
     const cachedArticles = articleCache[cacheKey];
     if (cachedArticles) {
       setArticles(cachedArticles);
@@ -38,37 +42,51 @@ export const useArticles = () => {
       setLoading(true);
     }
 
-    // The actual number of articles displayed in the feed per page.
-    // When contentType is "all", limitParam includes +1 for the hero article,
-    // so we subtract 1 to get the real feed page size for totalPages calculation.
-    const feedPageSize = contentType === "all" ? limitParam - 1 : limitParam;
-
     setError(null);
     try {
-      const result = await apiService.fetchArticles(contentType, pageParam, limitParam);
+      const result = await apiService.fetchArticles(contentType, pageParam, limitParam, heroId);
       const localNews = result.data;
       articleCache[cacheKey] = localNews;
       if (contentType === "all") {
         articleCache[`article_${pageParam}_${limitParam}`] = localNews.filter((article) => (article.contentType || "article") === "article");
       }
       setArticles(localNews);
-      setTotalPages(Math.ceil(result.count / feedPageSize) || 1);
+      setTotalPages(Math.ceil(result.count / limitParam) || 1);
       setPage(pageParam);
       setLoading(false);
     } catch (err) {
       setError("ვერ მოხერხდა ახალი ამბების ჩატვირთვა.");
-      const fallbackResult = await apiService.fetchArticles(contentType, pageParam, limitParam);
+      const fallbackResult = await apiService.fetchArticles(contentType, pageParam, limitParam, heroId);
       articleCache[cacheKey] = fallbackResult.data;
       setArticles(fallbackResult.data);
-      setTotalPages(Math.ceil(fallbackResult.count / feedPageSize) || 1);
+      setTotalPages(Math.ceil(fallbackResult.count / limitParam) || 1);
       setPage(pageParam);
       setLoading(false);
     }
   }, []);
 
-  /** Load all news: fetch FEED_PAGE_SIZE articles for the feed + 1 for the hero */
-  const FEED_PAGE_SIZE = 20;
-  const loadAllNews = useCallback((p: number = 1) => loadNews("all", p, FEED_PAGE_SIZE + 1), [loadNews]);
+  /**
+   * Load all news for the home page.
+   * 1. Fetch hero article independently (autonomous, separate from feed)
+   * 2. Fetch FEED_PAGE_SIZE feed articles, excluding the hero article's ID
+   * This guarantees exactly FEED_PAGE_SIZE articles in the feed on every page.
+   */
+  const loadAllNews = useCallback(async (p: number = 1) => {
+    // Step 1: Fetch hero article (autonomous, only once — stays the same across pages)
+    let currentHeroId: string | undefined;
+    try {
+      const hero = await apiService.fetchHeroArticle();
+      setHeroArticle(hero);
+      currentHeroId = hero?.id;
+    } catch {
+      // Hero fetch failed — continue without hero, feed still loads
+      console.error("Failed to fetch hero article");
+    }
+
+    // Step 2: Fetch feed articles, excluding the hero
+    await loadNews("all", p, FEED_PAGE_SIZE, currentHeroId);
+  }, [loadNews]);
+
   const loadArticleNews = useCallback((p: number = 1) => loadNews("article", p), [loadNews]);
 
   useEffect(() => {
@@ -86,6 +104,17 @@ export const useArticles = () => {
       });
 
       setArticles((currentArticles) => applyViewCountUpdate(currentArticles, articleId, detail.viewCount));
+
+      // Also update hero if it matches
+      setHeroArticle((currentHero) => {
+        if (!currentHero || currentHero.id !== articleId) return currentHero;
+        return {
+          ...currentHero,
+          viewCount: Number.isFinite(Number(detail.viewCount))
+            ? Number(detail.viewCount)
+            : Number(currentHero.viewCount || 0) + 1,
+        };
+      });
     };
 
     window.addEventListener("paqtebi-article-view-tracked", handleViewTracked);
@@ -100,6 +129,14 @@ export const useArticles = () => {
     articleCache["all_1_20"] = localNews;
     articleCache["article_1_20"] = localNews.filter((article) => (article.contentType || "article") === "article");
     setArticles(localNews);
+
+    // Also refresh hero
+    try {
+      const hero = await apiService.fetchHeroArticle();
+      setHeroArticle(hero);
+    } catch {
+      // ignore
+    }
   };
 
   const addArticle = async (article: Article) => {
@@ -143,6 +180,7 @@ export const useArticles = () => {
 
   return {
     articles,
+    heroArticle,
     loading,
     error,
     page,

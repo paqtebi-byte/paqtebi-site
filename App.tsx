@@ -131,7 +131,7 @@ const getEffectiveSiteUser = (
 const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home" }) => {
   const navigate = useNavigate();
   const { currentUser, isAdminAuthenticated, logoutPublic, setCurrentUser } = useAuthContext();
-  const { articles, loading, error, page, totalPages, loadAllNews } = useArticlesContext();
+  const { articles, heroArticle, loading, error, page, totalPages, loadAllNews } = useArticlesContext();
   const { breakingNews } = useBreakingNews();
   const { bookmarkedIds } = useBookmarks();
 
@@ -227,12 +227,11 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
   };
 
   const articleOnlyItems = articles.filter((a) => (a.contentType || "article") === "article");
-  const explicitHeroArticle = articleOnlyItems.find((a) => a.layout === "hero");
-  const heroArticle = explicitHeroArticle || articleOnlyItems[0];
+  // Hero is fetched autonomously via the hook — no longer derived from feed articles
   const heroHasArticleContent = Boolean(heroArticle?.content?.replace(/<[^>]*>/g, "").trim());
   const sidebarArticles = articleOnlyItems.filter((a) => a.layout === "sidebar");
   const mainFeedArticles = articleOnlyItems.filter(
-    (a) => (a.layout === "standard" || !a.layout) && !(a as any)._isSupplementary && (heroArticle ? a.id !== heroArticle.id : true)
+    (a) => (a.layout === "standard" || !a.layout) && !(a as any)._isSupplementary
   );
 
   const getFilteredArticles = () => {
@@ -247,7 +246,8 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
   };
 
   const filteredFeedArticles = getFilteredArticles();
-  const displayedFeedArticles = (viewMode === "home" && !searchQuery) ? filteredFeedArticles.slice(0, 20) : filteredFeedArticles;
+  // Feed is already exactly FEED_PAGE_SIZE from the server — no client-side slicing needed
+  const displayedFeedArticles = filteredFeedArticles;
   const now = new Date();
   const timeStr = now.toLocaleTimeString("ka-GE", { hour: "2-digit", minute: "2-digit" });
   const dateStr = now.toLocaleDateString("ka-GE", { weekday: "long", year: "numeric", month: "long", day: "numeric" });

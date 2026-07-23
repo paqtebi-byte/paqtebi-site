@@ -322,16 +322,20 @@ class RemoteApiService {
   }
 
   /**
-   * Fetch all articles from the database with pagination
+   * Fetch all articles from the database with pagination.
+   * @param excludeId - Optional article ID to exclude from results (e.g. the hero article)
    */
-  async fetchArticles(contentType: Article["contentType"] | "all" = "all", page: number = 1, limit: number = 20): Promise<{ data: Article[], count: number }> {
+  async fetchArticles(contentType: Article["contentType"] | "all" = "all", page: number = 1, limit: number = 20, excludeId?: string): Promise<{ data: Article[], count: number }> {
     if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
       try {
         const stored = localStorage.getItem(this.LOCAL_STORAGE_KEY);
         const articles = stored ? JSON.parse(stored) : [];
-        const filteredArticles = contentType === "all"
+        let filteredArticles = contentType === "all"
           ? articles
           : articles.filter((article: Article) => (article.contentType || "article") === contentType);
+        if (excludeId) {
+          filteredArticles = filteredArticles.filter((a: Article) => a.id !== excludeId);
+        }
         const withViews = await this.attachArticleViewCounts(filteredArticles);
         const start = (page - 1) * limit;
         return { data: withViews.slice(start, start + limit), count: withViews.length };
@@ -357,6 +361,11 @@ class RemoteApiService {
 
       if (contentType !== "all") {
         mainQuery = mainQuery.eq("content_type", contentType);
+      }
+
+      // Exclude a specific article (e.g. the hero) from the feed
+      if (excludeId) {
+        mainQuery = mainQuery.neq("id", excludeId);
       }
 
       let sidebarQuery: any = null;
@@ -387,6 +396,7 @@ class RemoteApiService {
       
       // Collect IDs of main articles to avoid duplicating them from sidebar
       const mainIdSet = new Set(mainRows.map((r: any) => r.id));
+      if (excludeId) mainIdSet.add(excludeId); // also exclude hero from sidebar results
       
       // Sidebar articles: only add those that are NOT already in the main set
       const sidebarRows = (sidebarResult.data || []);
@@ -408,6 +418,66 @@ class RemoteApiService {
     } catch (error) {
       console.error("Error in fetchArticles:", error);
       return { data: [], count: 0 };
+    }
+  }
+
+  /**
+   * Fetch the hero article independently.
+   * Returns the most recent article with layout='hero', or the newest article if none is marked as hero.
+   * This is completely autonomous from the feed pagination.
+   */
+  async fetchHeroArticle(): Promise<Article | null> {
+    if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
+      try {
+        const stored = localStorage.getItem(this.LOCAL_STORAGE_KEY);
+        const articles: Article[] = stored ? JSON.parse(stored) : [];
+        const articleOnly = articles.filter((a) => (a.contentType || "article") === "article");
+        const hero = articleOnly.find((a) => a.layout === "hero") || articleOnly[0] || null;
+        if (!hero) return null;
+        const withViews = await this.attachArticleViewCounts([hero]);
+        return withViews[0] || null;
+      } catch (error) {
+        console.error("Error fetching hero article from localStorage:", error);
+        return null;
+      }
+    }
+
+    try {
+      const selectFields = "id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived";
+
+      // First: try to find an article explicitly marked as hero
+      const { data: heroData, error: heroError } = await this.supabase!
+        .from(DATABASE_CONFIG.TABLES.ARTICLES)
+        .select(selectFields)
+        .eq("is_archived", false)
+        .eq("layout", "hero")
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (!heroError && heroData && heroData.length > 0) {
+        const article = this.mapArticleFromDb(heroData[0]);
+        const withViews = await this.attachArticleViewCounts([article]);
+        return withViews[0] || null;
+      }
+
+      // Fallback: get the newest article (content_type = article)
+      const { data: latestData, error: latestError } = await this.supabase!
+        .from(DATABASE_CONFIG.TABLES.ARTICLES)
+        .select(selectFields)
+        .eq("is_archived", false)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (!latestError && latestData && latestData.length > 0) {
+        const article = this.mapArticleFromDb(latestData[0]);
+        const withViews = await this.attachArticleViewCounts([article]);
+        return withViews[0] || null;
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error fetching hero article:", error);
+      return null;
     }
   }
 
