@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 
-const MODEL = "gemini-2.5-flash";
+const MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 const MAX_TEXT_LENGTH = 12_000;
 const REQUEST_TIMEOUT_MS = 15_000;
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
@@ -127,7 +127,9 @@ export default async function handler(request, response) {
     }
 
     if (!geminiResponse.ok) {
-      console.error(`[gemini-summary] Gemini returned ${geminiResponse.status}`);
+      const errorData = await geminiResponse.json().catch(() => ({}));
+      const errorMessage = String(errorData?.error?.message || "No error details").slice(0, 300);
+      console.error(`[gemini-summary] Gemini returned ${geminiResponse.status}: ${errorMessage}`);
       return json(response, 502, { error: "AI summary request failed" });
     }
 
