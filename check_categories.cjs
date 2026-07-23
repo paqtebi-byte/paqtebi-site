@@ -1,60 +1,62 @@
-const { createClient } = require('@supabase/supabase-js');
+const supabase = require('./scripts/supabase-client.cjs');
 
-const supabaseUrl = 'REMOVED_SUPABASE_PROJECT_URL';
-const supabaseKey = 'REMOVED_SUPABASE_JWT';
-
-const supabase = createClient(supabaseUrl, supabaseKey);
+const MEDIA_CATEGORIES = [
+  'ვიდეო რეპორტაჟები',
+  'პოდკასტები',
+  'საინტერესო',
+  'ლაივი',
+  'LIVE',
+];
 
 async function run() {
-  // 1. Get all distinct category values in the DB
-  console.log('\n=== STEP 1: Distinct category values in articles table ===');
-  const { data: cats, error: catsErr } = await supabase
+  const { data: categories, error: categoriesError } = await supabase
     .from('articles')
     .select('category, content_type')
     .order('category', { ascending: true });
 
-  if (catsErr) {
-    console.error('Error fetching categories:', catsErr);
-  } else {
-    // Deduplicate
-    const unique = {};
-    cats.forEach(r => {
-      const key = `${r.category}|${r.content_type}`;
-      if (!unique[key]) unique[key] = { category: r.category, content_type: r.content_type, count: 0 };
-      unique[key].count++;
-    });
-    console.table(Object.values(unique).sort((a, b) => (a.category || '').localeCompare(b.category || '')));
+  if (categoriesError) {
+    throw new Error(`Could not fetch categories: ${categoriesError.message}`);
   }
 
-  // 2. Get the media category rows specifically - check all possible spellings
-  console.log('\n=== STEP 2: Media category rows (video/live/podcast content) ===');
-  const { data: media, error: mediaErr } = await supabase
+  const unique = new Map();
+  for (const row of categories || []) {
+    const key = `${row.category}|${row.content_type}`;
+    const current = unique.get(key) || {
+      category: row.category,
+      content_type: row.content_type,
+      count: 0,
+    };
+    current.count += 1;
+    unique.set(key, current);
+  }
+  console.table([...unique.values()].sort((a, b) =>
+    (a.category || '').localeCompare(b.category || '')
+  ));
+
+  const { data: media, error: mediaError } = await supabase
     .from('articles')
     .select('id, category, content_type, title')
-    .in('category', ['ვიდეო რეპორტაჟები', 'პოდკასტები', 'საინტერესო', 'ლაივი', 'LIVE'])
+    .in('category', MEDIA_CATEGORIES)
     .limit(30);
 
-  if (mediaErr) {
-    console.error('Error:', mediaErr);
-  } else {
-    console.log(`Found ${media.length} rows with media categories:`);
-    media.forEach(r => console.log(`  [${r.id}] category="${r.category}" content_type="${r.content_type}" title="${r.title?.substring(0,40)}"`));
+  if (mediaError) {
+    throw new Error(`Could not fetch media categories: ${mediaError.message}`);
   }
+  console.table(media || []);
 
-  // 3. Also check content_type='live' to catch any rows stored differently
-  console.log('\n=== STEP 3: All rows with content_type = live ===');
-  const { data: liveRows, error: liveErr } = await supabase
+  const { data: liveRows, error: liveError } = await supabase
     .from('articles')
     .select('id, category, content_type, title')
     .eq('content_type', 'live')
     .limit(20);
 
-  if (liveErr) {
-    console.error('Error:', liveErr);
-  } else {
-    console.log(`Found ${liveRows.length} live rows:`);
-    liveRows.forEach(r => console.log(`  [${r.id}] category="${r.category}" content_type="${r.content_type}"`));
+  if (liveError) {
+    throw new Error(`Could not fetch live articles: ${liveError.message}`);
   }
+  console.table(liveRows || []);
 }
 
-run().catch(console.error);
+run().catch((error) => {
+  console.error(error.message);
+  process.exitCode = 1;
+});

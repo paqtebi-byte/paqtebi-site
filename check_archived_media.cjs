@@ -1,15 +1,13 @@
-const { createClient } = require('@supabase/supabase-js');
+const supabase = require('./scripts/supabase-client.cjs');
 
-const supabaseUrl = 'REMOVED_SUPABASE_PROJECT_URL';
-const supabaseKey = 'REMOVED_SUPABASE_JWT';
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-const MEDIA_CATEGORIES = ['ვიდეო რეპორტაჟები', 'პოდკასტები', 'საინტერესო', 'ლაივი'];
+const MEDIA_CATEGORIES = [
+  'ვიდეო რეპორტაჟები',
+  'პოდკასტები',
+  'საინტერესო',
+  'ლაივი',
+];
 
 async function run() {
-  console.log('\n=== Media category rows: is_archived status + age ===');
-
   const { data, error } = await supabase
     .from('articles')
     .select('id, category, content_type, title, created_at, is_archived')
@@ -17,30 +15,27 @@ async function run() {
     .order('created_at', { ascending: true });
 
   if (error) {
-    console.error('Error:', error);
-    return;
+    throw new Error(`Could not fetch archived media: ${error.message}`);
   }
 
-  const now = new Date();
-  console.log(`\nTotal media rows: ${data.length}\n`);
-
-  let archivedCount = 0;
-  data.forEach(r => {
-    const ageDays = Math.floor((now - new Date(r.created_at)) / (1000 * 60 * 60 * 24));
-    const flag = r.is_archived ? '⚠️  ARCHIVED' : '✅ active';
-    console.log(`  ${flag} | category="${r.category}" | age=${ageDays}d | is_archived=${r.is_archived} | "${r.title?.substring(0,40)}"`);
-    if (r.is_archived) archivedCount++;
+  const rows = data || [];
+  const archivedCount = rows.filter((row) => row.is_archived).length;
+  console.table(rows.map((row) => ({
+    id: row.id,
+    category: row.category,
+    content_type: row.content_type,
+    is_archived: row.is_archived,
+    age_days: Math.floor((Date.now() - new Date(row.created_at).getTime()) / 86_400_000),
+    title: row.title,
+  })));
+  console.log({
+    total: rows.length,
+    archived: archivedCount,
+    active: rows.length - archivedCount,
   });
-
-  console.log(`\n--- Summary ---`);
-  console.log(`Already archived (is_archived=true): ${archivedCount}`);
-  console.log(`Active (is_archived=false):          ${data.length - archivedCount}`);
-
-  if (archivedCount > 0) {
-    console.log('\n⚠️  ACTION NEEDED: one-off un-archive UPDATE required in migration.');
-  } else {
-    console.log('\n✅ CLEAR: No media rows are archived. No retroactive fix needed.');
-  }
 }
 
-run().catch(console.error);
+run().catch((error) => {
+  console.error(error.message);
+  process.exitCode = 1;
+});
