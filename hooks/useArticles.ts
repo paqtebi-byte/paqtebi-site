@@ -38,6 +38,11 @@ export const useArticles = () => {
       setLoading(true);
     }
 
+    // The actual number of articles displayed in the feed per page.
+    // When contentType is "all", limitParam includes +1 for the hero article,
+    // so we subtract 1 to get the real feed page size for totalPages calculation.
+    const feedPageSize = contentType === "all" ? limitParam - 1 : limitParam;
+
     setError(null);
     try {
       const result = await apiService.fetchArticles(contentType, pageParam, limitParam);
@@ -47,7 +52,7 @@ export const useArticles = () => {
         articleCache[`article_${pageParam}_${limitParam}`] = localNews.filter((article) => (article.contentType || "article") === "article");
       }
       setArticles(localNews);
-      setTotalPages(Math.ceil(result.count / limitParam) || 1);
+      setTotalPages(Math.ceil(result.count / feedPageSize) || 1);
       setPage(pageParam);
       setLoading(false);
     } catch (err) {
@@ -55,13 +60,15 @@ export const useArticles = () => {
       const fallbackResult = await apiService.fetchArticles(contentType, pageParam, limitParam);
       articleCache[cacheKey] = fallbackResult.data;
       setArticles(fallbackResult.data);
-      setTotalPages(Math.ceil(fallbackResult.count / limitParam) || 1);
+      setTotalPages(Math.ceil(fallbackResult.count / feedPageSize) || 1);
       setPage(pageParam);
       setLoading(false);
     }
   }, []);
 
-  const loadAllNews = useCallback((p: number = 1) => loadNews("all", p, 21), [loadNews]);
+  /** Load all news: fetch FEED_PAGE_SIZE articles for the feed + 1 for the hero */
+  const FEED_PAGE_SIZE = 20;
+  const loadAllNews = useCallback((p: number = 1) => loadNews("all", p, FEED_PAGE_SIZE + 1), [loadNews]);
   const loadArticleNews = useCallback((p: number = 1) => loadNews("article", p), [loadNews]);
 
   useEffect(() => {

@@ -381,23 +381,28 @@ class RemoteApiService {
         throw new Error(`Error fetching articles: ${mainResult.error.message}`);
       }
 
-      const allRows = [...(mainResult.data || []), ...(sidebarResult.data || [])];
+      // Map main articles first — these are the primary feed articles and must stay intact
+      const mainRows = (mainResult.data || []);
+      const mainArticles = mainRows.map((row: any) => this.mapArticleFromDb(row));
       
-      const uniqueRows = Array.from(new Map(allRows.map(r => [r.id, r])).values());
+      // Collect IDs of main articles to avoid duplicating them from sidebar
+      const mainIdSet = new Set(mainRows.map((r: any) => r.id));
       
-      uniqueRows.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      const mapped = uniqueRows.map((row) => {
-        const isMain = mainResult.data && mainResult.data.some((mr: any) => mr.id === row.id);
-        const article = this.mapArticleFromDb(row);
-        if (!isMain) {
+      // Sidebar articles: only add those that are NOT already in the main set
+      const sidebarRows = (sidebarResult.data || []);
+      const supplementaryArticles = sidebarRows
+        .filter((row: any) => !mainIdSet.has(row.id))
+        .map((row: any) => {
+          const article = this.mapArticleFromDb(row);
           (article as any)._isSupplementary = true;
-        }
-        return article;
-      });
+          return article;
+        });
+      
+      // Main articles come first (preserving their exact count), then supplementary
+      const combined = [...mainArticles, ...supplementaryArticles];
 
       return {
-        data: await this.attachArticleViewCounts(mapped),
+        data: await this.attachArticleViewCounts(combined),
         count: mainResult.count || 0
       };
     } catch (error) {
