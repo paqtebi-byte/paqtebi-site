@@ -101,11 +101,14 @@ export default async function handler(request, response) {
 
     try {
       geminiResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
         {
           method: "POST",
           signal: controller.signal,
-          headers: { "content-type": "application/json" },
+          headers: {
+            "content-type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
           body: JSON.stringify({
             contents: [{
               parts: [{
