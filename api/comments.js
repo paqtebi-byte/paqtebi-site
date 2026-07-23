@@ -19,7 +19,68 @@ async function readBody(request) {
 function getConfig() {
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
-  return { supabaseUrl, serviceKey };
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
+  return { supabaseUrl, serviceKey, anonKey };
+}
+
+const ADMIN_ROLES = new Set(["admin", "owner"]);
+
+function getBearerToken(request) {
+  const authorization = String(request.headers?.authorization || "");
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() || "";
+}
+
+async function requireAdmin(request) {
+  const token = getBearerToken(request);
+  if (!token) return { status: 401 };
+
+  const { supabaseUrl, serviceKey, anonKey } = getConfig();
+  if (!supabaseUrl || !serviceKey || !anonKey) {
+    throw new Error("Supabase server credentials are not configured");
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  let authResponse;
+
+  try {
+    authResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      method: "GET",
+      signal: controller.signal,
+      headers: {
+        apikey: anonKey,
+        authorization: `Bearer ${token}`,
+      },
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Supabase authentication timed out");
+    }
+    throw new Error("Supabase authentication failed");
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  if (!authResponse.ok) return { status: 401 };
+
+  let authUser;
+  try {
+    authUser = await authResponse.json();
+  } catch {
+    return { status: 401 };
+  }
+
+  if (!authUser?.id) return { status: 401 };
+
+  const rows = await supabaseRequest(
+    `users?id=eq.${encodeURIComponent(authUser.id)}&select=id,role`,
+    { method: "GET" },
+  );
+  const admin = rows?.[0];
+
+  if (!admin || !ADMIN_ROLES.has(admin.role)) return { status: 403 };
+  return { status: 200, admin };
 }
 
 const VIEW_EVENT_AUTHOR = "__paqtebi_view__";
@@ -195,6 +256,14 @@ export default async function handler(request, response) {
     }
 
     if (request.method === "DELETE") {
+      const authorization = await requireAdmin(request);
+      if (authorization.status !== 200) {
+        json(response, authorization.status, {
+          error: authorization.status === 401 ? "Authentication required" : "Admin access required",
+        });
+        return;
+      }
+
       const url = new URL(request.url, "http://localhost");
       const id = url.searchParams.get("id");
       if (!id) {

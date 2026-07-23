@@ -181,8 +181,13 @@ class RemoteApiService {
   }
 
   private async deleteCommentViaApi(id: string): Promise<boolean> {
+    const { data } = await this.supabase!.auth.getSession();
+    const accessToken = data.session?.access_token;
     const response = await fetch(`/api/comments?id=${encodeURIComponent(id)}`, {
       method: "DELETE",
+      headers: accessToken
+        ? { authorization: `Bearer ${accessToken}` }
+        : undefined,
     });
 
     if (!response.ok) {
@@ -880,22 +885,6 @@ class RemoteApiService {
 
     try {
       return await this.deleteCommentViaApi(id);
-    } catch (apiError) {
-      console.warn("Comment API delete failed; falling back to Supabase client:", apiError);
-    }
-
-    // Use Supabase as a fallback.
-    try {
-      const { error } = await this.supabase!
-        .from(DATABASE_CONFIG.TABLES.COMMENTS)
-        .delete()
-        .eq("id", id);
-
-      if (error) {
-        throw new Error(`Error deleting comment: ${error.message}`);
-      }
-
-      return true;
     } catch (error) {
       console.error("Error in deleteComment:", error);
       return false;
