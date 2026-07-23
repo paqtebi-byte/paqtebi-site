@@ -12,6 +12,7 @@ import {
 
 export const useAuth = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(getPublicCurrentUser());
+  const [currentAdmin, setCurrentAdmin] = useState(getCurrentAdmin());
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [isAdminAuthLoading, setIsAdminAuthLoading] = useState(true);
 
@@ -19,16 +20,17 @@ export const useAuth = () => {
   useEffect(() => {
     let mounted = true;
 
-    const refreshAdminSession = async () => {
-      setIsAdminAuthLoading(true);
+    const refreshAdminSession = async (showLoading = false) => {
+      if (showLoading) setIsAdminAuthLoading(true);
       const admin = await getAdminFromSession();
       if (mounted) {
+        setCurrentAdmin(admin);
         setIsAdminAuthenticated(Boolean(admin));
         setIsAdminAuthLoading(false);
       }
     };
 
-    refreshAdminSession();
+    refreshAdminSession(true);
 
     syncOAuthPublicUser().then((user) => {
       if (mounted && user) setCurrentUser(user);
@@ -38,9 +40,17 @@ export const useAuth = () => {
       setCurrentUser(user);
     });
 
-    const handleStorageChange = () => {
-      refreshAdminSession();
-      setCurrentUser(getPublicCurrentUser());
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'paqtebi_admin_auth') {
+        refreshAdminSession();
+      } else if (event.key === 'paqtebi_current_admin') {
+        setCurrentAdmin(getCurrentAdmin());
+      } else if (event.key === 'paqtebi_current_user') {
+        setCurrentUser(getPublicCurrentUser());
+      } else if (event.key === null) {
+        refreshAdminSession();
+        setCurrentUser(getPublicCurrentUser());
+      }
     };
 
     window.addEventListener('storage', handleStorageChange);
@@ -53,6 +63,7 @@ export const useAuth = () => {
 
   const logoutAdmin = () => {
     logoutAdminService();
+    setCurrentAdmin(null);
     setIsAdminAuthenticated(false);
   };
 
@@ -65,12 +76,13 @@ export const useAuth = () => {
     setCurrentUser(getPublicCurrentUser());
   };
 
-  const refreshAuth = () => {
+  const refreshAuth = async () => {
     setIsAdminAuthLoading(true);
-    getAdminFromSession().then((admin) => {
-      setIsAdminAuthenticated(Boolean(admin));
-      setIsAdminAuthLoading(false);
-    });
+    const admin = await getAdminFromSession();
+    setCurrentAdmin(admin);
+    setIsAdminAuthenticated(Boolean(admin));
+    setIsAdminAuthLoading(false);
+    return Boolean(admin);
   };
 
   return {
@@ -82,6 +94,6 @@ export const useAuth = () => {
     refreshUser,
     refreshAuth,
     setCurrentUser, // Exposed for direct updates from AuthModal
-    currentAdmin: getCurrentAdmin(),
+    currentAdmin,
   };
 };

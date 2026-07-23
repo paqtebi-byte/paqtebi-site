@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { loginAdminUnified } from '../services/authService';
 import { useToast } from '../context/ToastContext';
+import { useAuthContext } from '../context/AuthContext';
 import { Lock, Eye, EyeOff, User, UserPlus, ArrowLeft, Shield } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
 
@@ -9,6 +10,7 @@ export const Login: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { addToast } = useToast();
+  const { refreshAuth } = useAuthContext();
 
   const [formData, setFormData] = useState({ username: '', password: '', secretCode: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -40,6 +42,11 @@ export const Login: React.FC = () => {
     try {
       const response = await loginAdminUnified(formData.username, formData.password, formData.secretCode);
       if (response.success) {
+        const sessionReady = await refreshAuth();
+        if (!sessionReady) {
+          setError('ადმინისტრატორის სესიის დადასტურება ვერ მოხერხდა');
+          return;
+        }
         addToast(response.message, 'success');
         navigate('/admin');
       } else {
