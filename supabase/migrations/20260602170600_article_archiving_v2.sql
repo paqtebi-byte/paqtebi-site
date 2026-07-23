@@ -1,6 +1,6 @@
 -- ─────────────────────────────────────────────────────────────
 -- Migration: article_archiving_v2
--- Fixes: no custom GUC vars; URL hardcoded; key from Vault
+-- Project URL and authorization key are both read from Vault at runtime.
 -- ─────────────────────────────────────────────────────────────
 
 -- 1. Extensions
@@ -38,21 +38,27 @@ SELECT cron.schedule(
   $$
 );
 
--- 5. Trigger function — URL hardcoded, key pulled from Vault at runtime
+-- 5. Trigger function — URL and key pulled from Vault at runtime
 CREATE OR REPLACE FUNCTION public.notify_article_deleted()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
   _service_key TEXT;
+  _project_url TEXT;
 BEGIN
-  -- Read service_role_key from Vault at runtime (never stored in code)
-  SELECT decrypted_secret
-    INTO _service_key
+  SELECT
+    MAX(decrypted_secret) FILTER (WHERE name = 'webhook_service_key'),
+    MAX(decrypted_secret) FILTER (WHERE name = 'project_url')
+    INTO _service_key, _project_url
     FROM vault.decrypted_secrets
-   WHERE name = 'webhook_service_key'
-   LIMIT 1;
+   WHERE name IN ('webhook_service_key', 'project_url');
+
+  IF _service_key IS NULL OR _project_url IS NULL THEN
+    RAISE WARNING 'Article media cleanup skipped: required Vault secrets are missing';
+    RETURN OLD;
+  END IF;
 
   PERFORM net.http_post(
-    url     := 'REMOVED_SUPABASE_PROJECT_URL/functions/v1/cleanup-article-media',
+    url     := rtrim(_project_url, '/') || '/functions/v1/cleanup-article-media',
     headers := jsonb_build_object(
       'Content-Type',  'application/json',
       'Authorization', 'Bearer ' || _service_key
