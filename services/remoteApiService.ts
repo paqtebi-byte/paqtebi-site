@@ -291,7 +291,6 @@ class RemoteApiService {
       sessionStorage.setItem(recentKey, String(now));
     }
 
-    this.recordLocalArticleView(articleId);
     const notifyViewTracked = (viewCount?: number) => {
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("paqtebi-article-view-tracked", {
@@ -311,6 +310,9 @@ class RemoteApiService {
         throw new Error(`Analytics API failed: ${response.status}`);
       }
       const data = await response.json();
+      if (data.counted !== false) {
+        this.recordLocalArticleView(articleId);
+      }
       const viewCount = Number.isFinite(Number(data.viewCount)) ? Number(data.viewCount) : null;
       notifyViewTracked(viewCount ?? undefined);
       return viewCount;

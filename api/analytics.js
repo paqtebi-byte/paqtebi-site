@@ -1,3 +1,5 @@
+import crypto from "node:crypto";
+
 function json(response, status, body) {
   response.statusCode = status;
   response.setHeader("content-type", "application/json; charset=utf-8");
@@ -23,10 +25,16 @@ function getConfig() {
 }
 
 const VIEW_EVENT_AUTHOR = "__paqtebi_view__";
+const VIEWER_COOKIE = "paqtebi_viewer";
+const VIEW_DEDUPE_WINDOW_MS = 6 * 60 * 60 * 1000;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX_REQUESTS = 60;
+const rateLimits = new Map();
 
-function encodeViewText(articleId) {
+function encodeViewText(articleId, visitorKey = "") {
   const encodedArticleId = Buffer.from(String(articleId), "utf8").toString("base64url");
-  return `[[paqtebi-view:${encodedArticleId}]]`;
+  const marker = `[[paqtebi-view:${encodedArticleId}]]`;
+  return visitorKey ? `${marker}\n[[paqtebi-visitor:${visitorKey}]]` : marker;
 }
 
 function decodeViewArticleId(row) {
@@ -40,6 +48,115 @@ function decodeViewArticleId(row) {
   } catch {
     return "";
   }
+}
+
+function getHeader(request, name) {
+  const value = request.headers?.[name] ?? request.headers?.[name.toLowerCase()];
+  return Array.isArray(value) ? value[0] : String(value || "");
+}
+
+function getClientIp(request) {
+  const forwardedFor = getHeader(request, "x-forwarded-for");
+  return forwardedFor.split(",")[0]?.trim() || getHeader(request, "x-real-ip") || "unknown";
+}
+
+function consumeRateLimit(request) {
+  const now = Date.now();
+  const clientIp = getClientIp(request);
+  const current = rateLimits.get(clientIp);
+
+  if (!current || current.resetAt <= now) {
+    rateLimits.set(clientIp, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true, retryAfter: 0 };
+  }
+
+  if (current.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return {
+      allowed: false,
+      retryAfter: Math.max(1, Math.ceil((current.resetAt - now) / 1000)),
+    };
+  }
+
+  current.count += 1;
+
+  if (rateLimits.size > 5000) {
+    for (const [key, entry] of rateLimits) {
+      if (entry.resetAt <= now) rateLimits.delete(key);
+    }
+  }
+
+  return { allowed: true, retryAfter: 0 };
+}
+
+function parseCookies(request) {
+  return getHeader(request, "cookie")
+    .split(";")
+    .reduce((cookies, part) => {
+      const separator = part.indexOf("=");
+      if (separator < 1) return cookies;
+      const name = part.slice(0, separator).trim();
+      const value = part.slice(separator + 1).trim();
+      if (name) cookies[name] = value;
+      return cookies;
+    }, {});
+}
+
+function getVisitorSecret() {
+  const { serviceKey } = getConfig();
+  return process.env.ADMIN_SESSION_SECRET || serviceKey;
+}
+
+function signVisitorId(visitorId, secret) {
+  return crypto.createHmac("sha256", secret).update(visitorId).digest("base64url");
+}
+
+function isValidVisitorCookie(value, secret) {
+  const [visitorId, signature, ...extra] = String(value || "").split(".");
+  if (extra.length > 0 || !/^[a-f0-9]{32}$/.test(visitorId || "") || !signature) return false;
+
+  const expected = signVisitorId(visitorId, secret);
+  const receivedBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+  return receivedBuffer.length === expectedBuffer.length
+    && crypto.timingSafeEqual(receivedBuffer, expectedBuffer);
+}
+
+function getOrCreateVisitor(request, response) {
+  const secret = getVisitorSecret();
+  if (!secret) throw new Error("Analytics visitor secret is not configured");
+
+  const stored = parseCookies(request)[VIEWER_COOKIE];
+  let visitorId;
+
+  if (isValidVisitorCookie(stored, secret)) {
+    [visitorId] = stored.split(".");
+  } else {
+    visitorId = crypto.randomBytes(16).toString("hex");
+    const signedValue = `${visitorId}.${signVisitorId(visitorId, secret)}`;
+    response.setHeader(
+      "set-cookie",
+      `${VIEWER_COOKIE}=${signedValue}; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax`,
+    );
+  }
+
+  const anonymousId = crypto
+    .createHmac("sha256", secret)
+    .update(visitorId)
+    .digest("base64url")
+    .slice(0, 22);
+  return anonymousId;
+}
+
+function isValidArticleId(articleId) {
+  return articleId.length <= 128 && /^[A-Za-z0-9_-]+$/.test(articleId);
+}
+
+async function articleExists(articleId) {
+  const { data } = await supabaseRequest(
+    `articles?id=eq.${encodeURIComponent(articleId)}&is_archived=eq.false&select=id&limit=1`,
+    { method: "GET" },
+  );
+  return Boolean(data?.[0]?.id);
 }
 
 async function supabaseRequest(path, options = {}) {
@@ -150,12 +267,44 @@ export default async function handler(request, response) {
     }
 
     if (request.method === "POST") {
+      const limit = consumeRateLimit(request);
+      if (!limit.allowed) {
+        response.setHeader("retry-after", String(limit.retryAfter));
+        json(response, 429, { error: "Too many view requests" });
+        return;
+      }
+
       const body = await readBody(request);
       const action = String(body.action || "").trim();
       const articleId = String(body.articleId || "").trim();
 
-      if (action !== "view" || !articleId) {
+      if (action !== "view" || !articleId || !isValidArticleId(articleId)) {
         json(response, 400, { error: "Missing view payload" });
+        return;
+      }
+
+      if (!(await articleExists(articleId))) {
+        json(response, 404, { error: "Article not found" });
+        return;
+      }
+
+      const anonymousVisitorId = getOrCreateVisitor(request, response);
+      const timeBucket = Math.floor(Date.now() / VIEW_DEDUPE_WINDOW_MS).toString(36);
+      const visitorKey = `${timeBucket}:${anonymousVisitorId}`;
+      const viewText = encodeViewText(articleId, visitorKey);
+      const { data: existingViews } = await supabaseRequest(
+        `comments?select=id&author=eq.${encodeURIComponent(VIEW_EVENT_AUTHOR)}&text=eq.${encodeURIComponent(viewText)}&limit=1`,
+        { method: "GET" },
+      );
+
+      if (existingViews?.length) {
+        const viewCounts = await getArticleViewCounts([articleId]);
+        json(response, 200, {
+          success: true,
+          counted: false,
+          articleId,
+          viewCount: viewCounts[articleId] || 0,
+        });
         return;
       }
 
@@ -167,7 +316,7 @@ export default async function handler(request, response) {
           body: JSON.stringify({
             article_id: articleId,
             author: VIEW_EVENT_AUTHOR,
-            text: encodeViewText(articleId),
+            text: viewText,
           }),
         }));
       } catch (error) {
@@ -179,7 +328,7 @@ export default async function handler(request, response) {
           headers: { Prefer: "return=representation" },
           body: JSON.stringify({
             author: VIEW_EVENT_AUTHOR,
-            text: encodeViewText(articleId),
+            text: viewText,
           }),
         }));
       }
@@ -188,6 +337,7 @@ export default async function handler(request, response) {
 
       json(response, 200, {
         success: true,
+        counted: true,
         id: data?.[0]?.id || null,
         articleId,
         viewCount: viewCounts[articleId] || 0,
