@@ -979,24 +979,15 @@ class RemoteApiService {
     }
 
     try {
-      const { data: comment, error: fetchError } = await this.supabase!
-        .from(DATABASE_CONFIG.TABLES.COMMENTS)
-        .select("reactions")
-        .eq("id", id)
-        .single();
+      if (!['like', 'dislike', 'heart'].includes(reaction)) return false;
 
-      if (fetchError) throw fetchError;
+      const { data, error } = await this.supabase!.rpc(
+        "increment_comment_reaction",
+        { p_comment_id: id, p_reaction: reaction },
+      );
 
-      const reactions = comment?.reactions || {};
-      reactions[reaction] = (reactions[reaction] || 0) + 1;
-
-      const { error: updateError } = await this.supabase!
-        .from(DATABASE_CONFIG.TABLES.COMMENTS)
-        .update({ reactions })
-        .eq("id", id);
-
-      if (updateError) throw updateError;
-      return true;
+      if (error) throw error;
+      return data === true;
     } catch (error) {
       console.error("Error in addReaction:", error);
       return false;
