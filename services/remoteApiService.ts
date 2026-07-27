@@ -329,7 +329,14 @@ class RemoteApiService {
    * Fetch all articles from the database with pagination.
    * @param excludeId - Optional article ID to exclude from results (e.g. the hero article)
    */
-  async fetchArticles(contentType: Article["contentType"] | "all" = "all", page: number = 1, limit: number = 20, excludeId?: string, feedOnly: boolean = false): Promise<{ data: Article[], count: number }> {
+  async fetchArticles(
+    contentType: Article["contentType"] | "all" = "all",
+    page: number = 1,
+    limit: number = 20,
+    excludeId?: string,
+    feedOnly: boolean = false,
+    category?: string,
+  ): Promise<{ data: Article[], count: number }> {
     if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
       try {
         const articles = readLocalStorageJson<Article[]>(this.LOCAL_STORAGE_KEY, [], Array.isArray);
@@ -341,6 +348,9 @@ class RemoteApiService {
             (article.contentType || "article") === "article" &&
             (article.layout === "standard" || !article.layout)
           );
+        }
+        if (category) {
+          filteredArticles = filteredArticles.filter((article: Article) => article.category === category);
         }
         if (excludeId) {
           filteredArticles = filteredArticles.filter((a: Article) => a.id !== excludeId);
@@ -374,6 +384,10 @@ class RemoteApiService {
           .or("layout.eq.standard,layout.is.null");
       } else if (contentType !== "all") {
         mainQuery = mainQuery.eq("content_type", contentType);
+      }
+
+      if (category) {
+        mainQuery = mainQuery.eq("category", category);
       }
 
       // Exclude a specific article (e.g. the hero) from the feed

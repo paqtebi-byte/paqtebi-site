@@ -27,9 +27,16 @@ class ApiService {
   /**
    * Fetch all articles from storage with pagination
    */
-  async fetchArticles(contentType: Article["contentType"] | "all" = "all", page: number = 1, limit: number = 20, excludeId?: string, feedOnly: boolean = false): Promise<{ data: Article[], count: number }> {
+  async fetchArticles(
+    contentType: Article["contentType"] | "all" = "all",
+    page: number = 1,
+    limit: number = 20,
+    excludeId?: string,
+    feedOnly: boolean = false,
+    category?: string,
+  ): Promise<{ data: Article[], count: number }> {
     const requestGeneration = this.articleCacheGeneration;
-    const key = `${contentType || "all"}_${page}_${limit}_${excludeId || ""}_${feedOnly ? "feed" : "all"}`;
+    const key = `${contentType || "all"}_${page}_${limit}_${excludeId || ""}_${feedOnly ? "feed" : "all"}_${category || "all-categories"}`;
     const cached = this.articleCache.get(key);
     if (cached && Date.now() - cached.timestamp < this.ARTICLE_CACHE_TTL) {
       return { data: cached.data, count: cached.count };
@@ -38,7 +45,7 @@ class ApiService {
     const pending = this.articleRequests.get(key);
     if (pending) return pending;
 
-    const request = RemoteApiService.fetchArticles(contentType, page, limit, excludeId, feedOnly)
+    const request = RemoteApiService.fetchArticles(contentType, page, limit, excludeId, feedOnly, category)
       .then((result) => {
         if (requestGeneration === this.articleCacheGeneration) {
           this.articleCache.set(key, { data: result.data, count: result.count, timestamp: Date.now() });

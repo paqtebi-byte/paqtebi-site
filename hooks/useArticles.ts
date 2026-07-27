@@ -7,6 +7,7 @@ type ArticleCacheKey = string; // e.g., "all_1_20"
 
 const articleCache: Partial<Record<ArticleCacheKey, Article[]>> = {};
 let articleCacheVersion = 0;
+let latestListRequestId = 0;
 
 const HOME_PAGE_CACHE_KEY = "paqtebi_home_page_cache_v1";
 const HOME_PAGE_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -111,9 +112,11 @@ export const useArticles = () => {
     feedOnly: boolean = false,
     showLoading: boolean = true,
     preserveVisibleArticlesOnEmpty: boolean = false,
+    category?: string,
   ) => {
     const requestCacheVersion = articleCacheVersion;
-    const cacheKey = `${contentType}_${pageParam}_${limitParam}_${heroId || ""}_${feedOnly ? "feed" : "all"}`;
+    const listRequestId = ++latestListRequestId;
+    const cacheKey = `${contentType}_${pageParam}_${limitParam}_${heroId || ""}_${feedOnly ? "feed" : "all"}_${category || "all-categories"}`;
     const cachedArticles = articleCache[cacheKey];
     if (cachedArticles) {
       setArticles(cachedArticles);
@@ -125,10 +128,13 @@ export const useArticles = () => {
     setError(null);
     try {
       const result = await withSingleRetry(() => (
-        apiService.fetchArticles(contentType, pageParam, limitParam, heroId, feedOnly)
+        apiService.fetchArticles(contentType, pageParam, limitParam, heroId, feedOnly, category)
       ));
       const localNews = result.data;
-      if (requestCacheVersion !== articleCacheVersion) return;
+      if (
+        requestCacheVersion !== articleCacheVersion ||
+        listRequestId !== latestListRequestId
+      ) return;
 
       if (preserveVisibleArticlesOnEmpty && localNews.length === 0) {
         return result;
@@ -230,6 +236,19 @@ export const useArticles = () => {
   }, [loadNews]);
 
   const loadArticleNews = useCallback((p: number = 1) => loadNews("article", p), [loadNews]);
+  const loadCategoryNews = useCallback(
+    (category: string, p: number = 1) => loadNews(
+      "all",
+      p,
+      FEED_PAGE_SIZE,
+      undefined,
+      true,
+      true,
+      false,
+      category,
+    ),
+    [loadNews],
+  );
 
   useEffect(() => {
     const handleViewTracked = (event: Event) => {
@@ -334,6 +353,7 @@ export const useArticles = () => {
     totalPages,
     loadAllNews,
     loadArticleNews,
+    loadCategoryNews,
     refreshLocalOnly,
     addArticle,
     updateArticle,

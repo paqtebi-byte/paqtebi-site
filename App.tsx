@@ -131,7 +131,16 @@ const getEffectiveSiteUser = (
 const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home" }) => {
   const navigate = useNavigate();
   const { currentUser, isAdminAuthenticated, logoutPublic, setCurrentUser } = useAuthContext();
-  const { articles, heroArticle, loading, error, page, totalPages, loadAllNews } = useArticlesContext();
+  const {
+    articles,
+    heroArticle,
+    loading,
+    error,
+    page,
+    totalPages,
+    loadAllNews,
+    loadCategoryNews,
+  } = useArticlesContext();
   const { breakingNews } = useBreakingNews();
   const { bookmarkedIds } = useBookmarks();
 
@@ -175,6 +184,17 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
     window.scrollTo(0, 0);
   }, [navigate]);
 
+  const selectNewsCategory = (category: string) => {
+    setSelectedCategory(category);
+    setSearchQuery("");
+
+    if (category === FEED_CATEGORIES[0]) {
+      loadAllNews(1);
+    } else {
+      loadCategoryNews(category, 1);
+    }
+  };
+
   const handleMenuLink = (_itemIndex: number, _linkIndex: number, link: string) => {
     setSearchQuery("");
     setIsSearchOpen(false);
@@ -195,7 +215,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
       navigate("/interesting");
       return;
     }
-    setSelectedCategory(link);
+    selectNewsCategory(link);
     navigate("/");
     // Scroll to feed section
     setTimeout(() => {
@@ -219,7 +239,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
       return;
     }
 
-    setSelectedCategory(cat);
+    selectNewsCategory(cat);
   };
 
   const handleBackToHome = () => {
@@ -697,7 +717,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
                         key={cat}
                         role="tab"
                         aria-selected={selectedCategory === cat}
-                        onClick={() => setSelectedCategory(cat)}
+                        onClick={() => handleFeedCategoryClick(cat)}
                         className={`px-3 py-1.5 text-xs font-bold rounded-full whitespace-nowrap transition-all ${
                           selectedCategory === cat
                             ? "bg-news-accent text-white shadow-sm"
@@ -729,7 +749,7 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
                         {searchQuery ? "მოთხოვნით არაფერი მოიძებნა" : "ამ კატეგორიაში სიახლეები არ არის"}
                       </p>
                       <button
-                        onClick={() => { setSelectedCategory(FEED_CATEGORIES[0]); setSearchQuery(""); }}
+                        onClick={() => selectNewsCategory(FEED_CATEGORIES[0])}
                         className="mt-4 text-news-accent font-bold text-sm hover:underline"
                       >
                         ყველა სიახლე →
@@ -795,12 +815,16 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
                   ))}
                 </div>
               )}
-              {viewMode === "home" && !searchQuery && selectedCategory === FEED_CATEGORIES[0] && (
+              {viewMode === "home" && !searchQuery && (
                 <Pagination
                   currentPage={page}
                   totalPages={totalPages}
                   onPageChange={(newPage) => {
-                    loadAllNews(newPage);
+                    if (selectedCategory === FEED_CATEGORIES[0]) {
+                      loadAllNews(newPage);
+                    } else {
+                      loadCategoryNews(selectedCategory, newPage);
+                    }
                     window.scrollTo({ top: 0, behavior: "smooth" });
                   }}
                 />
