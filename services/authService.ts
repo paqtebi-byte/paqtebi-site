@@ -363,30 +363,6 @@ export const requestPasswordReset = async (email: string): Promise<AdminAuthResp
     message: 'If this email is registered, a password reset link has been sent.',
   };
 
-  const accounts = getAdminAccounts();
-  const admin = accounts.find(a => a.email === email);
-
-  if (!admin) {
-    // Don't reveal if email exists for security
-    return {
-      success: true,
-      message: 'თუ ეს ელ-ფოსტა რეგისტრირებულია, პაროლის აღდგენის ინსტრუქცია გამოიგზავნება',
-    };
-  }
-
-  // Generate reset token (valid for 1 hour)
-  admin.resetToken = generateResetToken();
-  admin.resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-  saveAdminAccounts(accounts);
-
-  // In production, send email with reset link
-  console.log(`🔐 Password Reset Link: http://localhost:3000/admin/reset-password/${admin.resetToken}`);
-  console.log(`⏰ Valid for: 1 hour`);
-
-  return {
-    success: true,
-    message: 'პაროლის აღდგენის ინსტრუქცია გამოიგზავნება თქვენს ელ-ფოსტაზე',
-  };
 };
 
 export const verifyResetToken = async (token?: string): Promise<AdminAuthResponse> => {
@@ -400,19 +376,6 @@ export const verifyResetToken = async (token?: string): Promise<AdminAuthRespons
 
   return { success: true, message: 'Reset session is valid' };
 
-  const accounts = getAdminAccounts();
-  const admin = accounts.find(a => a.resetToken === token);
-
-  if (!admin || !admin.resetTokenExpiry) {
-    return { success: false, message: 'არასწორი ან ვადაგასული ლინკი' };
-  }
-
-  const expiryTime = new Date(admin.resetTokenExpiry);
-  if (expiryTime < new Date()) {
-    return { success: false, message: 'ლინკის ვადა გასულია' };
-  }
-
-  return { success: true, message: 'ტოკენი ვალიდურია' };
 };
 
 export const resetPassword = async (token: string | undefined, newPassword: string): Promise<AdminAuthResponse> => {
@@ -428,31 +391,6 @@ export const resetPassword = async (token: string | undefined, newPassword: stri
 
   return { success: true, message: 'Password was updated successfully' };
 
-  const accounts = getAdminAccounts();
-  const admin = accounts.find(a => a.resetToken === token);
-
-  if (!admin || !admin.resetTokenExpiry) {
-    return { success: false, message: 'არასწორი ან ვადაგასული ლინკი' };
-  }
-
-  const expiryTime = new Date(admin.resetTokenExpiry);
-  if (expiryTime < new Date()) {
-    return { success: false, message: 'ლინკის ვადა გასულია' };
-  }
-
-  if (!isPasswordValid(newPassword)) {
-    return { success: false, message: 'პაროლი არ აკმაყოფილებს მოთხოვნებს' };
-  }
-
-  // Update password
-  admin.passwordHash = hashPassword(newPassword);
-  admin.resetToken = undefined;
-  admin.resetTokenExpiry = undefined;
-  admin.failedLoginAttempts = 0;
-  admin.lockedUntil = undefined;
-  saveAdminAccounts(accounts);
-
-  return { success: true, message: 'პაროლი წარმატებით შეიცვალა' };
 };
 
 export const verifyEmail = (token: string): AdminAuthResponse => {

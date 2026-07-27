@@ -19,7 +19,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -29,7 +29,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
         addToast('შეავსეთ სავალდებულო ველები', 'error');
         return;
       }
-      const result = registerPublicUser(formData);
+      const result = await registerPublicUser(formData);
       if (result.success && result.user) {
         addToast('რეგისტრაცია წარმატებით დასრულდა', 'success');
         onLoginSuccess(result.user);
