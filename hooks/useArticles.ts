@@ -6,6 +6,14 @@ import { withSingleRetry } from "../utils/singleRetry";
 type ArticleCacheKey = string; // e.g., "all_1_20"
 
 const articleCache: Partial<Record<ArticleCacheKey, Article[]>> = {};
+let articleCacheVersion = 0;
+
+const invalidateArticleCache = () => {
+  articleCacheVersion += 1;
+  Object.keys(articleCache).forEach((key) => {
+    delete articleCache[key];
+  });
+};
 
 const applyViewCountUpdate = (
   articles: Article[],
@@ -35,6 +43,7 @@ export const useArticles = () => {
   const [totalPages, setTotalPages] = useState(1);
 
   const loadNews = useCallback(async (contentType: NonNullable<Article["contentType"]> | "all" = "all", pageParam: number = 1, limitParam: number = FEED_PAGE_SIZE, heroId?: string, feedOnly: boolean = false) => {
+    const requestCacheVersion = articleCacheVersion;
     const cacheKey = `${contentType}_${pageParam}_${limitParam}_${heroId || ""}_${feedOnly ? "feed" : "all"}`;
     const cachedArticles = articleCache[cacheKey];
     if (cachedArticles) {
@@ -50,6 +59,8 @@ export const useArticles = () => {
         apiService.fetchArticles(contentType, pageParam, limitParam, heroId, feedOnly)
       ));
       const localNews = result.data;
+      if (requestCacheVersion !== articleCacheVersion) return;
+
       articleCache[cacheKey] = localNews;
       if (contentType === "all") {
         articleCache[`article_${pageParam}_${limitParam}`] = localNews.filter((article) => (article.contentType || "article") === "article");
@@ -72,10 +83,13 @@ export const useArticles = () => {
    * This guarantees exactly FEED_PAGE_SIZE articles in the feed on every page.
    */
   const loadAllNews = useCallback(async (p: number = 1) => {
+    const requestCacheVersion = articleCacheVersion;
     // Step 1: Fetch hero article (autonomous, only once — stays the same across pages)
     let currentHeroId: string | undefined;
     try {
       const hero = await apiService.fetchHeroArticle();
+      if (requestCacheVersion !== articleCacheVersion) return;
+
       setHeroArticle(hero);
       currentHeroId = hero?.id;
     } catch {
@@ -143,6 +157,7 @@ export const useArticles = () => {
       if (!savedArticle) {
         throw new Error("Article was not saved");
       }
+      invalidateArticleCache();
       await refreshLocalOnly();
       await loadAllNews(1);
     } catch (error) {
@@ -157,6 +172,7 @@ export const useArticles = () => {
       if (!saved) {
         throw new Error("Article was not updated");
       }
+      invalidateArticleCache();
       await refreshLocalOnly();
       await loadAllNews(1);
     } catch (error) {
@@ -167,6 +183,7 @@ export const useArticles = () => {
 
   const removeArticle = async (id: string) => {
     await apiService.deleteArticle(id);
+    invalidateArticleCache();
     await refreshLocalOnly();
     await loadAllNews(1);
   };

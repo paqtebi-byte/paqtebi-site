@@ -5,7 +5,6 @@ import { useArticlesContext } from '../context/ArticlesContext';
 import { useBreakingNews } from '../hooks/useBreakingNews';
 import { useComments } from '../hooks/useComments';
 import {
-  getCurrentAdmin,
   listAdminUsers,
   listPublicUsers,
   createAdminUser,
@@ -74,7 +73,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const { breakingNews, addTickerItem, removeTickerItem } = useBreakingNews();
   const { comments, removeComment, refreshComments } = useComments();
   const { addToast } = useToast();
-  const { logoutAdmin } = useAuthContext();
+  const { logoutAdmin, currentAdmin } = useAuthContext();
 
   const [activeTab, setActiveTab] = useState<Tab>('ANALYTICS');
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
@@ -83,7 +82,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [publicUsers, setPublicUsers] = useState<any[]>([]);
   const [isLoadingPublicUsers, setIsLoadingPublicUsers] = useState(false);
   const [isSavingAdmin, setIsSavingAdmin] = useState(false);
-  const currentAdmin = getCurrentAdmin();
   const isOwner = currentAdmin?.role === 'owner';
   const [polls, setPolls] = useState(getPolls());
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

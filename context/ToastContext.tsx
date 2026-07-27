@@ -29,8 +29,12 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const addToast = useCallback((message: string, type: ToastType = 'info') => {
-    const id = Date.now().toString();
-    setToasts((prev) => [...prev, { id, message, type }]);
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setToasts((prev) => (
+      prev.some((toast) => toast.message === message && toast.type === type)
+        ? prev
+        : [...prev, { id, message, type }]
+    ));
 
     // Auto remove after 3 seconds
     setTimeout(() => {

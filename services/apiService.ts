@@ -9,6 +9,7 @@ import { AdInquiry, AdPlacement, Article, Comment, BreakingNewsItem, User, Analy
 class ApiService {
   private articleCache = new Map<string, { data: Article[]; count: number; timestamp: number }>();
   private articleRequests = new Map<string, Promise<{ data: Article[]; count: number }>>();
+  private articleCacheGeneration = 0;
   private readonly ARTICLE_CACHE_TTL = 300_000; // 5 minutes
 
   // Hero article: separate cache so it's fully autonomous
@@ -16,6 +17,7 @@ class ApiService {
   private heroRequest: Promise<Article | null> | null = null;
 
   private clearArticleCache() {
+    this.articleCacheGeneration += 1;
     this.articleCache.clear();
     this.articleRequests.clear();
     this.heroCache = null;
@@ -26,6 +28,7 @@ class ApiService {
    * Fetch all articles from storage with pagination
    */
   async fetchArticles(contentType: Article["contentType"] | "all" = "all", page: number = 1, limit: number = 20, excludeId?: string, feedOnly: boolean = false): Promise<{ data: Article[], count: number }> {
+    const requestGeneration = this.articleCacheGeneration;
     const key = `${contentType || "all"}_${page}_${limit}_${excludeId || ""}_${feedOnly ? "feed" : "all"}`;
     const cached = this.articleCache.get(key);
     if (cached && Date.now() - cached.timestamp < this.ARTICLE_CACHE_TTL) {
@@ -37,12 +40,18 @@ class ApiService {
 
     const request = RemoteApiService.fetchArticles(contentType, page, limit, excludeId, feedOnly)
       .then((result) => {
-        this.articleCache.set(key, { data: result.data, count: result.count, timestamp: Date.now() });
-        this.articleRequests.delete(key);
+        if (requestGeneration === this.articleCacheGeneration) {
+          this.articleCache.set(key, { data: result.data, count: result.count, timestamp: Date.now() });
+        }
+        if (this.articleRequests.get(key) === request) {
+          this.articleRequests.delete(key);
+        }
         return { data: result.data, count: result.count };
       })
       .catch((error) => {
-        this.articleRequests.delete(key);
+        if (this.articleRequests.get(key) === request) {
+          this.articleRequests.delete(key);
+        }
         throw error;
       });
 
@@ -61,14 +70,21 @@ class ApiService {
 
     if (this.heroRequest) return this.heroRequest;
 
+    const requestGeneration = this.articleCacheGeneration;
     const request = RemoteApiService.fetchHeroArticle()
       .then((hero) => {
-        this.heroCache = { data: hero, timestamp: Date.now() };
-        this.heroRequest = null;
+        if (requestGeneration === this.articleCacheGeneration) {
+          this.heroCache = { data: hero, timestamp: Date.now() };
+        }
+        if (this.heroRequest === request) {
+          this.heroRequest = null;
+        }
         return hero;
       })
       .catch((error) => {
-        this.heroRequest = null;
+        if (this.heroRequest === request) {
+          this.heroRequest = null;
+        }
         throw error;
       });
 
