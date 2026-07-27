@@ -12,7 +12,7 @@ import { BrandLogo } from "./components/BrandLogo";
 import { LinkedText } from "./components/LinkedText";
 import { ArticleExcerpt } from "./components/ArticleExcerpt";
 import { stripHtmlToText } from "./utils/articleHtml";
-import { formatDayMonthYear } from "./utils/dateFormat";
+import { formatDayMonthYear, formatGeorgianFullDate } from "./utils/dateFormat";
 import { getArticleViewCount } from "./utils/viewUtils";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -256,8 +256,12 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
   const displayedFeedArticles = viewMode === "home"
     ? filteredFeedArticles.slice(0, 20)
     : filteredFeedArticles;
-  const timeStr = currentDateTime.toLocaleTimeString("ka-GE", { hour: "2-digit", minute: "2-digit" });
-  const dateStr = currentDateTime.toLocaleDateString("ka-GE", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  const timeStr = currentDateTime.toLocaleTimeString("ka-GE", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const dateStr = formatGeorgianFullDate(currentDateTime);
   const feedTitle =
     viewMode === "saved"
       ? "შენახული სტატიები"

@@ -33,6 +33,37 @@ export const formatDayMonthYear = (value?: string | number | Date | null): strin
 
 export const getTodayDayMonthYear = (): string => formatDayMonthYear(new Date());
 
+const GEORGIAN_WEEKDAYS = [
+  "კვირა",
+  "ორშაბათი",
+  "სამშაბათი",
+  "ოთხშაბათი",
+  "ხუთშაბათი",
+  "პარასკევი",
+  "შაბათი",
+] as const;
+
+const GEORGIAN_MONTHS = [
+  "იანვარი",
+  "თებერვალი",
+  "მარტი",
+  "აპრილი",
+  "მაისი",
+  "ივნისი",
+  "ივლისი",
+  "აგვისტო",
+  "სექტემბერი",
+  "ოქტომბერი",
+  "ნოემბერი",
+  "დეკემბერი",
+] as const;
+
+export const formatGeorgianFullDate = (date: Date): string => {
+  const weekday = GEORGIAN_WEEKDAYS[date.getDay()];
+  const month = GEORGIAN_MONTHS[date.getMonth()];
+  return `${weekday}, ${date.getDate()} ${month}, ${date.getFullYear()}`;
+};
+
 const formatDateParts = (day: number, month: number, year: number): string => {
   if (!day || !month || !year) return "";
   return `${day}/${month}/${year}`;
