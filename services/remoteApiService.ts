@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { AdInquiry, AdPlacement, Article, Comment, BreakingNewsItem, User, AnalyticsData } from "../types";
 import { DATABASE_CONFIG } from "../config/database";
 import getSupabaseClient from "./supabaseClient";
+import { fetchWithTimeout } from "../utils/fetchWithTimeout";
+import { isRecord, readLocalStorageJson } from "../utils/safeStorage";
 
 /**
  * Service class for handling all API/database operations with Supabase
@@ -98,10 +100,11 @@ class RemoteApiService {
   }
 
   private getLocalAdPlacement(): AdPlacement {
-    const stored = localStorage.getItem(this.AD_STORAGE_KEY);
-    return stored
-      ? JSON.parse(stored)
-      : { title: "", imageUrl: "", targetUrl: "", active: false, views: 0 };
+    return readLocalStorageJson<AdPlacement>(
+      this.AD_STORAGE_KEY,
+      { title: "", imageUrl: "", targetUrl: "", active: false, views: 0 },
+      (value): value is AdPlacement => isRecord(value),
+    );
   }
 
   private saveLocalAdPlacement(ad: AdPlacement): AdPlacement {
@@ -151,7 +154,7 @@ class RemoteApiService {
 
   private async fetchCommentsFromApi(articleId?: string): Promise<Comment[]> {
     const query = articleId ? `?articleId=${encodeURIComponent(articleId)}` : "";
-    const response = await fetch(`/api/comments${query}`);
+    const response = await fetchWithTimeout(`/api/comments${query}`);
     if (!response.ok) {
       throw new Error(`Comment API failed: ${response.status}`);
     }
@@ -162,7 +165,7 @@ class RemoteApiService {
   private async insertCommentViaApi(
     comment: Omit<Comment, "id" | "timestamp">,
   ): Promise<Comment | null> {
-    const response = await fetch("/api/comments", {
+    const response = await fetchWithTimeout("/api/comments", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -183,7 +186,7 @@ class RemoteApiService {
   private async deleteCommentViaApi(id: string): Promise<boolean> {
     const { data } = await this.supabase!.auth.getSession();
     const accessToken = data.session?.access_token;
-    const response = await fetch(`/api/comments?id=${encodeURIComponent(id)}`, {
+    const response = await fetchWithTimeout(`/api/comments?id=${encodeURIComponent(id)}`, {
       method: "DELETE",
       headers: accessToken
         ? { authorization: `Bearer ${accessToken}` }
@@ -198,12 +201,7 @@ class RemoteApiService {
   }
 
   private getLocalViewEvents(): { articleId: string; timestamp: number }[] {
-    try {
-      const stored = localStorage.getItem(this.VIEW_STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
+    return readLocalStorageJson(this.VIEW_STORAGE_KEY, [], Array.isArray);
   }
 
   private recordLocalArticleView(articleId: string) {
@@ -236,7 +234,7 @@ class RemoteApiService {
     }
 
     try {
-      const response = await fetch(`/api/analytics?articleIds=${encodeURIComponent(articleIds.join(","))}`);
+      const response = await fetchWithTimeout(`/api/analytics?articleIds=${encodeURIComponent(articleIds.join(","))}`);
       if (!response.ok) throw new Error(`Analytics API failed: ${response.status}`);
 
       const data = await response.json();
@@ -259,7 +257,7 @@ class RemoteApiService {
 
   async fetchAnalytics(): Promise<Pick<AnalyticsData, "totalArticles" | "totalViews">> {
     try {
-      const response = await fetch("/api/analytics");
+      const response = await fetchWithTimeout("/api/analytics");
       if (!response.ok) throw new Error(`Analytics API failed: ${response.status}`);
 
       const data = await response.json();
@@ -300,7 +298,7 @@ class RemoteApiService {
     };
 
     try {
-      const response = await fetch("/api/analytics", {
+      const response = await fetchWithTimeout("/api/analytics", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action: "view", articleId }),
@@ -324,8 +322,7 @@ class RemoteApiService {
   }
 
   private getLocalAdInquiries(): AdInquiry[] {
-    const stored = localStorage.getItem(this.AD_INQUIRIES_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    return readLocalStorageJson(this.AD_INQUIRIES_STORAGE_KEY, [], Array.isArray);
   }
 
   /**
@@ -335,8 +332,7 @@ class RemoteApiService {
   async fetchArticles(contentType: Article["contentType"] | "all" = "all", page: number = 1, limit: number = 20, excludeId?: string, feedOnly: boolean = false): Promise<{ data: Article[], count: number }> {
     if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
       try {
-        const stored = localStorage.getItem(this.LOCAL_STORAGE_KEY);
-        const articles = stored ? JSON.parse(stored) : [];
+        const articles = readLocalStorageJson<Article[]>(this.LOCAL_STORAGE_KEY, [], Array.isArray);
         let filteredArticles = contentType === "all"
           ? articles
           : articles.filter((article: Article) => (article.contentType || "article") === contentType);
@@ -461,8 +457,7 @@ class RemoteApiService {
   async fetchHeroArticle(): Promise<Article | null> {
     if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
       try {
-        const stored = localStorage.getItem(this.LOCAL_STORAGE_KEY);
-        const articles: Article[] = stored ? JSON.parse(stored) : [];
+        const articles = readLocalStorageJson<Article[]>(this.LOCAL_STORAGE_KEY, [], Array.isArray);
         const articleOnly = articles.filter((a) => (a.contentType || "article") === "article");
         const hero = articleOnly.find((a) => a.layout === "hero") || articleOnly[0] || null;
         if (!hero) return null;
@@ -525,7 +520,7 @@ class RemoteApiService {
     }
 
     try {
-      const response = await fetch('/api/analytics?scope=articleCounts');
+      const response = await fetchWithTimeout('/api/analytics?scope=articleCounts');
       if (!response.ok) throw new Error('Analytics API failed');
       const data = await response.json();
       const viewCounts: Record<string, number> = data.viewCounts || {};
@@ -730,8 +725,7 @@ class RemoteApiService {
   async fetchComments(articleId?: string): Promise<Comment[]> {
     if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
       try {
-        const stored = localStorage.getItem(this.COMMENT_STORAGE_KEY);
-        let comments: Comment[] = stored ? JSON.parse(stored) : [];
+        let comments = readLocalStorageJson<Comment[]>(this.COMMENT_STORAGE_KEY, [], Array.isArray);
         comments = comments.filter((comment) => comment.author !== this.VIEW_EVENT_AUTHOR);
 
         if (articleId) {
@@ -1000,8 +994,7 @@ class RemoteApiService {
   async fetchBreakingNews(): Promise<BreakingNewsItem[]> {
     if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
       try {
-        const stored = localStorage.getItem(this.BREAKING_NEWS_STORAGE_KEY);
-        return stored ? JSON.parse(stored) : [];
+        return readLocalStorageJson<BreakingNewsItem[]>(this.BREAKING_NEWS_STORAGE_KEY, [], Array.isArray);
       } catch (error) {
         console.error("Error fetching breaking news from localStorage:", error);
         return [];
@@ -1122,8 +1115,7 @@ class RemoteApiService {
   async fetchUsers(): Promise<User[]> {
     if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
       try {
-        const stored = localStorage.getItem(this.USER_STORAGE_KEY);
-        return stored ? JSON.parse(stored) : [];
+        return readLocalStorageJson<User[]>(this.USER_STORAGE_KEY, [], Array.isArray);
       } catch (error) {
         console.error("Error fetching users from localStorage:", error);
         return [];

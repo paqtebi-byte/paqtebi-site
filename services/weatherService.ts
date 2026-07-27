@@ -1,4 +1,5 @@
 import { WeatherData } from "../types";
+import { fetchWithTimeout } from "../utils/fetchWithTimeout";
 
 const WEATHER_API_URL =
   "https://api.open-meteo.com/v1/forecast?latitude=41.6941&longitude=44.8337&current=temperature_2m,weather_code,wind_speed_10m&timezone=auto";
@@ -9,7 +10,7 @@ const WEATHER_API_URL =
  */
 export const fetchWeatherData = async (): Promise<WeatherData> => {
   try {
-    const response = await fetch(WEATHER_API_URL);
+    const response = await fetchWithTimeout(WEATHER_API_URL);
     if (!response.ok) {
       throw new Error(
         `Weather API request failed with status ${response.status}`,

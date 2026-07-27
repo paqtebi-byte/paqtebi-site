@@ -2,6 +2,8 @@ import { User, AuthResponse } from "../types";
 import type { Provider, User as SupabaseAuthUser } from "@supabase/supabase-js";
 import getSupabaseClient from "./supabaseClient";
 import { isPasswordValid } from "../utils/passwordUtils";
+import { fetchWithTimeout } from "../utils/fetchWithTimeout";
+import { isRecord, readLocalStorageJson } from "../utils/safeStorage";
 
 // Storage Keys
 const STORAGE_KEY_ADMIN_AUTH = 'paqtebi_admin_auth';
@@ -67,7 +69,7 @@ const cacheAdmin = (
 };
 
 const callAdminApi = async <T,>(payload: Record<string, unknown>): Promise<T> => {
-  const response = await fetch('/api/admin-auth', {
+  const response = await fetchWithTimeout('/api/admin-auth', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     credentials: 'same-origin',
@@ -263,8 +265,16 @@ export const resetPassword = async (token: string | undefined, newPassword: stri
 };
 
 export const getCurrentAdmin = (): Omit<AdminAccount, 'passwordHash'> | null => {
-  const data = localStorage.getItem(STORAGE_KEY_CURRENT_ADMIN);
-  return data ? JSON.parse(data) : null;
+  return readLocalStorageJson<Omit<AdminAccount, 'passwordHash'> | null>(
+    STORAGE_KEY_CURRENT_ADMIN,
+    null,
+    (value): value is Omit<AdminAccount, 'passwordHash'> => (
+      isRecord(value) &&
+      typeof value.id === 'string' &&
+      typeof value.username === 'string' &&
+      typeof value.email === 'string'
+    ),
+  );
 };
 
 export const logoutAdmin = async (): Promise<void> => {
@@ -283,8 +293,7 @@ export const logoutAdmin = async (): Promise<void> => {
 // --- Public User Auth (unchanged) ---
 
 export const getRegisteredUsers = (): User[] => {
-  const users = localStorage.getItem(STORAGE_KEY_USERS);
-  return users ? JSON.parse(users) : [];
+  return readLocalStorageJson(STORAGE_KEY_USERS, [], Array.isArray);
 };
 
 const saveCurrentPublicUser = (user: User): User => {
@@ -337,7 +346,7 @@ const persistOAuthPublicUser = (authUser: SupabaseAuthUser): User => {
 
 export const registerPublicUser = async (user: User): Promise<AuthResponse> => {
   try {
-    const response = await fetch('/api/admin-auth', {
+    const response = await fetchWithTimeout('/api/admin-auth', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -435,8 +444,11 @@ export const subscribeToOAuthPublicUser = (
 };
 
 export const getPublicCurrentUser = (): User | null => {
-  const data = localStorage.getItem(STORAGE_KEY_CURRENT_USER);
-  return data ? JSON.parse(data) : null;
+  return readLocalStorageJson<User | null>(
+    STORAGE_KEY_CURRENT_USER,
+    null,
+    (value): value is User => isRecord(value) && typeof value.username === 'string',
+  );
 };
 
 export const logoutPublicUser = (): void => {

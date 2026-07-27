@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Article, User as UserType } from '../types';
 import { ArrowLeft, Clock, Tag, User, Facebook, Twitter, Link as LinkIcon, BookOpen, ZoomIn, ZoomOut, ArrowRight, Heart, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown, MessageCircle, Share2, Copy, Send, Mail, Instagram, Youtube, Music2, Eye } from 'lucide-react';
 import { CommentSection } from './CommentSection';
@@ -21,6 +21,15 @@ interface ArticleDetailProps {
   onNavigateToArticle: (article: Article) => void;
   isAdmin?: boolean;
 }
+
+const getStableRelatedScore = (currentArticleId: string, candidateId: string): number => {
+  const key = `${currentArticleId}:${candidateId}`;
+  let score = 0;
+  for (let index = 0; index < key.length; index += 1) {
+    score = ((score * 31) + key.charCodeAt(index)) >>> 0;
+  }
+  return score;
+};
 
 export const ArticleDetail: React.FC<ArticleDetailProps> = ({ 
   article, 
@@ -113,11 +122,15 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
   // Calculate read time (approx 200 words per minute)
   const readTime = Math.max(1, Math.ceil(plainContent.split(' ').filter(Boolean).length / 200));
 
-  // Find related articles (random 3 from same list, excluding current)
-  const relatedArticles = allArticles
-    .filter(a => a.id !== article.id && (a.contentType || 'article') === 'article')
-    .sort(() => 0.5 - Math.random())
-    .slice(0, 3);
+  // Keep the selection stable while the current article and source list stay unchanged.
+  const relatedArticles = useMemo(() => (
+    allArticles
+      .filter(a => a.id !== article.id && (a.contentType || 'article') === 'article')
+      .sort((left, right) => (
+        getStableRelatedScore(article.id, left.id) - getStableRelatedScore(article.id, right.id)
+      ))
+      .slice(0, 3)
+  ), [allArticles, article.id]);
 
   const getFontSizeClass = () => {
     switch(fontSize) {

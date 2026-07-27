@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { fetchWithTimeout } from "./_fetchWithTimeout.js";
 
 function json(response, status, body) {
   response.statusCode = status;
@@ -165,7 +166,7 @@ async function supabaseRequest(path, options = {}) {
     throw new Error("Supabase server credentials are not configured");
   }
 
-  const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
+  const response = await fetchWithTimeout(`${supabaseUrl}/rest/v1/${path}`, {
     ...options,
     headers: {
       apikey: serviceKey,

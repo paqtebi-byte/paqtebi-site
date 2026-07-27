@@ -1,4 +1,5 @@
 import { AdPlacement, Article, BreakingNewsItem, Poll } from "../types";
+import { isRecord, readLocalStorageJson } from "../utils/safeStorage";
 
 const STORAGE_KEY_ARTICLES = 'paqtebi_articles';
 const STORAGE_KEY_BREAKING_NEWS = 'paqtebi_breaking_news';
@@ -9,8 +10,7 @@ const STORAGE_KEY_AD_PLACEMENT = 'paqtebi_ad_placement';
 // --- Articles (CMS) ---
 
 export const getLocalArticles = (): Article[] => {
-  const data = localStorage.getItem(STORAGE_KEY_ARTICLES);
-  return data ? JSON.parse(data) : [];
+  return readLocalStorageJson(STORAGE_KEY_ARTICLES, [], Array.isArray);
 };
 
 export const saveLocalArticle = (article: Article): void => {
@@ -37,10 +37,12 @@ export const deleteLocalArticle = (id: string): void => {
 // --- Breaking News ---
 
 export const getBreakingNewsData = (): BreakingNewsItem[] => {
-  const data = localStorage.getItem(STORAGE_KEY_BREAKING_NEWS);
-  if (data) {
-    return JSON.parse(data);
-  }
+  const storedItems = readLocalStorageJson<BreakingNewsItem[] | null>(
+    STORAGE_KEY_BREAKING_NEWS,
+    null,
+    Array.isArray,
+  );
+  if (storedItems) return storedItems;
   // Default data if empty
   const defaults = [
     { id: '1', text: 'მსოფლიო ბანკი საქართველოს ეკონომიკურ ზრდას პროგნოზირებს', active: true },
@@ -70,8 +72,7 @@ export const deleteBreakingNewsItem = (id: string): void => {
 // --- Polls ---
 
 export const getPolls = (): Poll[] => {
-  const data = localStorage.getItem(STORAGE_KEY_POLLS);
-  return data ? JSON.parse(data) : [];
+  return readLocalStorageJson(STORAGE_KEY_POLLS, [], Array.isArray);
 };
 
 export const getActivePoll = (): Poll | null => {
@@ -144,18 +145,19 @@ export const updatePollVotes = (pollId: string, optionId: string): void => {
 // --- Sidebar Ad Placement ---
 
 export const getAdPlacement = (): AdPlacement => {
-  const data = localStorage.getItem(STORAGE_KEY_AD_PLACEMENT);
-  if (data) {
-    return JSON.parse(data);
-  }
-
-  return {
+  const fallback: AdPlacement = {
     title: '',
     imageUrl: '',
     targetUrl: '',
     active: false,
     views: 0,
   };
+
+  return readLocalStorageJson<AdPlacement>(
+    STORAGE_KEY_AD_PLACEMENT,
+    fallback,
+    (value): value is AdPlacement => isRecord(value),
+  );
 };
 
 export const saveAdPlacement = (ad: AdPlacement): void => {

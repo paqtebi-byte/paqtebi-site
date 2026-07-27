@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { getAdminSessionFromRequest } from "../server/adminSession.js";
+import { fetchWithTimeout } from "./_fetchWithTimeout.js";
 
 const MAX_IMAGE_DATA_LENGTH = 8 * 1024 * 1024;
 
@@ -52,10 +53,10 @@ async function uploadToCloudinary(imageData) {
   formData.set("timestamp", String(timestamp));
   formData.set("signature", signCloudinaryParams(params, apiSecret));
 
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+  const response = await fetchWithTimeout(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
     method: "POST",
     body: formData,
-  });
+  }, 30_000);
 
   const data = await response.json().catch(() => null);
   if (!response.ok) {

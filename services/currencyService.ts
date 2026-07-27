@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from "../utils/fetchWithTimeout";
+
 export interface CurrencyRate {
   code: string;
   rate: number;
@@ -16,7 +18,7 @@ export interface CurrencyData {
  */
 export const fetchCurrencyData = async (): Promise<CurrencyData | null> => {
   try {
-    const response = await fetch("/api/currency-proxy");
+    const response = await fetchWithTimeout("/api/currency-proxy");
     if (!response.ok) {
       throw new Error(`Currency proxy responded with status ${response.status}`);
     }

@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from "../utils/fetchWithTimeout";
+
 export interface UploadedImage {
   publicId: string;
   secureUrl: string;
@@ -8,12 +10,12 @@ export interface UploadedImage {
 }
 
 export const uploadArticleImage = async (imageData: string): Promise<UploadedImage> => {
-  const response = await fetch("/api/cloudinary-image", {
+  const response = await fetchWithTimeout("/api/cloudinary-image", {
     method: "POST",
     headers: { "content-type": "application/json" },
     credentials: "same-origin",
     body: JSON.stringify({ imageData }),
-  });
+  }, 45_000);
 
   const data = await response.json().catch(() => null);
   if (!response.ok || data?.success === false || !data?.image?.secureUrl) {

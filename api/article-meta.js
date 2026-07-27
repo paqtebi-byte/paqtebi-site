@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from "./_fetchWithTimeout.js";
+
 const SITE_URL = "https://www.paqtebi.ge";
 const SITE_NAME = "Paqtebi";
 
@@ -31,7 +33,7 @@ async function fetchArticle(id) {
 
   if (!supabaseUrl || !supabaseAnonKey || !id) return null;
 
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `${supabaseUrl}/rest/v1/articles?id=eq.${encodeURIComponent(id)}&select=id,title,summary,imageUrl,image_url`,
     {
       headers: {

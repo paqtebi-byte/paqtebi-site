@@ -1,4 +1,5 @@
 import { Article } from "../types";
+import { fetchWithTimeout } from "../utils/fetchWithTimeout";
 
 /**
  * The daily AI widget currently uses its editorial fallback article.
@@ -12,11 +13,11 @@ export const summarizeArticle = async (text: string): Promise<string | null> => 
   if (!normalizedText) return null;
 
   try {
-    const response = await fetch("/api/gemini-summary", {
+    const response = await fetchWithTimeout("/api/gemini-summary", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ text: normalizedText }),
-    });
+    }, 20_000);
 
     if (!response.ok) return null;
 

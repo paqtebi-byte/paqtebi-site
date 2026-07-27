@@ -1,10 +1,12 @@
+import { fetchWithTimeout } from "./_fetchWithTimeout.js";
+
 async function fetchArticle(id) {
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
   const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey || !id) return null;
 
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `${supabaseUrl}/rest/v1/articles?id=eq.${encodeURIComponent(id)}&select=imageUrl,image_url`,
     {
       headers: {

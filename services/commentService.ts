@@ -1,10 +1,10 @@
 import { Comment } from "../types";
+import { readLocalStorageJson } from "../utils/safeStorage";
 
 const STORAGE_KEY_COMMENTS = 'paqtebi_comments';
 
 export const getAllComments = (): Comment[] => {
-  const data = localStorage.getItem(STORAGE_KEY_COMMENTS);
-  return data ? JSON.parse(data) : [];
+  return readLocalStorageJson(STORAGE_KEY_COMMENTS, [], Array.isArray);
 };
 
 export const getCommentsByArticle = (articleId: string): Comment[] => {

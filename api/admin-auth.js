@@ -4,6 +4,7 @@ import {
   getAdminSessionFromRequest,
   setAdminSessionCookie,
 } from "../server/adminSession.js";
+import { fetchWithTimeout } from "./_fetchWithTimeout.js";
 
 const ADMIN_ROLES = new Set(["owner", "admin"]);
 
@@ -159,7 +160,7 @@ async function handleLogin(body, response) {
   } else if (admin.email) {
     // Fallback: Verify via Supabase Auth API
     const { supabaseUrl, serviceKey } = getConfig();
-    const authResponse = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+    const authResponse = await fetchWithTimeout(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
       method: "POST",
       headers: {
         apikey: serviceKey,
@@ -265,7 +266,7 @@ async function handleCreateAdmin(body, response, request) {
   let authUserId = crypto.randomUUID(); // fallback if auth creation fails
 
   try {
-    const authResponse = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
+    const authResponse = await fetchWithTimeout(`${supabaseUrl}/auth/v1/admin/users`, {
       method: "POST",
       headers: {
         apikey: serviceKey,
