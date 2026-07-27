@@ -1,11 +1,10 @@
 import { User, AuthResponse } from "../types";
 import type { Provider, User as SupabaseAuthUser } from "@supabase/supabase-js";
 import getSupabaseClient from "./supabaseClient";
-import { hashPassword, verifyPassword, generateResetToken, isPasswordValid } from "../utils/passwordUtils";
+import { isPasswordValid } from "../utils/passwordUtils";
 
 // Storage Keys
 const STORAGE_KEY_ADMIN_AUTH = 'paqtebi_admin_auth';
-const STORAGE_KEY_ADMIN_ACCOUNTS = 'paqtebi_admin_accounts';
 const STORAGE_KEY_USERS = 'paqtebi_users';
 const STORAGE_KEY_CURRENT_USER = 'paqtebi_current_user';
 const STORAGE_KEY_CURRENT_ADMIN = 'paqtebi_current_admin';
@@ -19,9 +18,6 @@ export interface AdminAccount {
   passwordHash: string;
   createdAt: string;
   emailVerified: boolean;
-  verificationToken?: string;
-  resetToken?: string;
-  resetTokenExpiry?: string;
   failedLoginAttempts: number;
   lockedUntil?: string;
   lastLogin?: string;
@@ -43,15 +39,6 @@ export interface AdminUserRecord {
 }
 
 // --- Admin Account Management ---
-
-export const getAdminAccounts = (): AdminAccount[] => {
-  const accounts = localStorage.getItem(STORAGE_KEY_ADMIN_ACCOUNTS);
-  return accounts ? JSON.parse(accounts) : [];
-};
-
-const saveAdminAccounts = (accounts: AdminAccount[]): void => {
-  localStorage.setItem(STORAGE_KEY_ADMIN_ACCOUNTS, JSON.stringify(accounts));
-};
 
 const clearAdminCache = (): void => {
   localStorage.removeItem(STORAGE_KEY_ADMIN_AUTH);
@@ -77,38 +64,6 @@ const cacheAdmin = (
   localStorage.removeItem(STORAGE_KEY_ADMIN_AUTH);
   localStorage.setItem(STORAGE_KEY_CURRENT_ADMIN, JSON.stringify(safeAdmin));
   return safeAdmin;
-};
-
-const getCachedAdmin = (): Omit<AdminAccount, 'passwordHash'> | null => {
-  const data = localStorage.getItem(STORAGE_KEY_CURRENT_ADMIN);
-  return data ? JSON.parse(data) : null;
-};
-
-const findAdminByLogin = async (
-  login: string,
-): Promise<{
-  id: string;
-  username: string;
-  email: string;
-  role: string;
-  password?: string | null;
-  password_hash?: string | null;
-} | null> => {
-  const supabase = getSupabaseClient();
-  if (!supabase) return null;
-
-  const trimmedLogin = login.trim();
-  const fields = 'id, username, email, role, password, password_hash';
-
-  // Single query with OR — eliminates the double round-trip
-  const { data, error } = await supabase
-    .from('users')
-    .select(fields)
-    .or(`email.eq.${trimmedLogin},username.eq.${trimmedLogin}`)
-    .maybeSingle();
-
-  if (error || !data) return null;
-  return data as any;
 };
 
 const callAdminApi = async <T,>(payload: Record<string, unknown>): Promise<T> => {
@@ -152,63 +107,6 @@ export const registerAdmin = (username: string, email: string, password: string)
   return {
     success: false,
     message: 'Registration is disabled for security reasons.'
-  };
-};
-
-export const loginAdmin = async (emailOrLogin: string, password: string): Promise<AdminAuthResponse> => {
-  const supabase = getSupabaseClient();
-  if (!supabase) return { success: false, message: 'Supabase client not configured' };
-
-  // Resolve username → email via backend (service role key bypasses RLS)
-  let resolvedEmail = emailOrLogin.trim();
-  if (!resolvedEmail.includes('@')) {
-    try {
-      const resolved = await callAdminApi<{ success: boolean; email?: string; role?: string }>({
-        action: 'resolveLogin',
-        login: resolvedEmail,
-      });
-      if (!resolved.success || !resolved.email) {
-        return { success: false, message: 'ელ-ფოსტა ან პაროლი არასწორია (Invalid email or password)' };
-      }
-      resolvedEmail = resolved.email;
-    } catch {
-      return { success: false, message: 'ელ-ფოსტა ან პაროლი არასწორია (Invalid email or password)' };
-    }
-  }
-
-  // 1. Authenticate via Supabase Auth (establishes real session for RLS)
-  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email: resolvedEmail,
-    password,
-  });
-
-  if (authError || !authData.user) {
-    return { success: false, message: 'ელ-ფოსტა ან პაროლი არასწორია (Invalid email or password)' };
-  }
-
-  // 2. Validate admin role via authenticated session (auth.uid() now valid → users_self_read policy allows this)
-  const { data: userData, error: userError } = await supabase
-    .from('users')
-    .select('role, username, email')
-    .eq('id', authData.user.id)
-    .single();
-
-  if (userError || !userData || !['admin', 'owner'].includes(userData.role)) {
-    await supabase.auth.signOut();
-    return { success: false, message: 'თქვენ არ გაქვთ ადმინისტრატორის უფლებები (Unauthorized role)' };
-  }
-
-  const safeAdmin = cacheAdmin(
-    authData.user.id,
-    userData.username || resolvedEmail,
-    userData.email || resolvedEmail,
-    userData.role as 'owner' | 'admin',
-  );
-
-  return {
-    success: true,
-    message: 'წარმატებით შეხვედით სისტემაში',
-    admin: safeAdmin as any,
   };
 };
 
@@ -362,25 +260,6 @@ export const resetPassword = async (token: string | undefined, newPassword: stri
 
   return { success: true, message: 'Password was updated successfully' };
 
-};
-
-export const verifyEmail = (token: string): AdminAuthResponse => {
-  const accounts = getAdminAccounts();
-  const admin = accounts.find(a => a.verificationToken === token);
-
-  if (!admin) {
-    return { success: false, message: 'არასწორი ვერიფიკაციის ლინკი' };
-  }
-
-  admin.emailVerified = true;
-  admin.verificationToken = undefined;
-  saveAdminAccounts(accounts);
-
-  return { success: true, message: 'ელ-ფოსტა წარმატებით დადასტურდა' };
-};
-
-export const checkAdminAuth = (): boolean => {
-  return false;
 };
 
 export const getCurrentAdmin = (): Omit<AdminAccount, 'passwordHash'> | null => {

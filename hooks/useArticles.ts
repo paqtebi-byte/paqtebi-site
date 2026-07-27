@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Article } from "../types";
 import apiService from "../services/apiService";
+import { withSingleRetry } from "../utils/singleRetry";
 
 type ArticleCacheKey = string; // e.g., "all_1_20"
 
@@ -45,7 +46,9 @@ export const useArticles = () => {
 
     setError(null);
     try {
-      const result = await apiService.fetchArticles(contentType, pageParam, limitParam, heroId, feedOnly);
+      const result = await withSingleRetry(() => (
+        apiService.fetchArticles(contentType, pageParam, limitParam, heroId, feedOnly)
+      ));
       const localNews = result.data;
       articleCache[cacheKey] = localNews;
       if (contentType === "all") {
@@ -54,14 +57,10 @@ export const useArticles = () => {
       setArticles(localNews);
       setTotalPages(Math.ceil(result.count / limitParam) || 1);
       setPage(pageParam);
-      setLoading(false);
     } catch (err) {
       setError("ვერ მოხერხდა ახალი ამბების ჩატვირთვა.");
-      const fallbackResult = await apiService.fetchArticles(contentType, pageParam, limitParam, heroId, feedOnly);
-      articleCache[cacheKey] = fallbackResult.data;
-      setArticles(fallbackResult.data);
-      setTotalPages(Math.ceil(fallbackResult.count / limitParam) || 1);
-      setPage(pageParam);
+      console.error("Failed to fetch articles after retry", err);
+    } finally {
       setLoading(false);
     }
   }, []);

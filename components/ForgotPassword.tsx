@@ -11,7 +11,6 @@ export const ForgotPassword: React.FC = () => {
     const [email, setEmail] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [emailSent, setEmailSent] = useState(false);
-    const [resetLink, setResetLink] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -33,9 +32,7 @@ export const ForgotPassword: React.FC = () => {
             addToast(response.message, response.success ? 'success' : 'error');
 
             if (response.success) {
-                const link = '';
                 setEmailSent(true);
-                console.log('🔐 Reset Link:', window.location.origin + link);
             }
         } catch (error) {
             addToast('მოთხოვნის დროს მოხდა შეცდომა', 'error');
@@ -52,23 +49,11 @@ export const ForgotPassword: React.FC = () => {
                         <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
                             <Send className="text-green-600" size={32} />
                         </div>
-                        <h2 className="text-2xl font-bold text-news-black mb-4">პაროლის აღდგენის ლინკი</h2>
+                        <h2 className="text-2xl font-bold text-news-black mb-4">წერილი გაგზავნილია</h2>
                         <p className="text-gray-600 mb-4">
-                            დემო რეჟიმში, პაროლის აღდგენის ლინკი ქვემოთ არის:
+                            შეამოწმეთ ელ-ფოსტა და პაროლის შესაცვლელად მიღებულ უსაფრთხო ბმულს მიჰყევით.
                         </p>
                     </div>
-
-                    {resetLink && (
-                        <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
-                            <p className="text-xs text-gray-600 mb-2">დააჭირეთ ლინკს:</p>
-                            <button
-                                onClick={() => navigate(resetLink)}
-                                className="w-full text-left p-3 bg-white border border-blue-300 rounded text-sm text-blue-600 hover:bg-blue-50 transition-colors break-all font-mono"
-                            >
-                                {window.location.origin}{resetLink}
-                            </button>
-                        </div>
-                    )}
 
                     <div className="space-y-3">
                         <button
@@ -78,7 +63,7 @@ export const ForgotPassword: React.FC = () => {
                             შესვლაზე დაბრუნება
                         </button>
                         <button
-                            onClick={() => { setEmailSent(false); setResetLink(''); }}
+                            onClick={() => setEmailSent(false)}
                             className="w-full text-gray-600 hover:text-news-accent transition-colors text-sm"
                         >
                             ხელახლა გაგზავნა

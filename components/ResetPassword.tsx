@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { verifyResetToken, resetPassword } from '../services/authService';
 import { PasswordStrengthIndicator } from './PasswordStrengthIndicator';
 import { useToast } from '../context/ToastContext';
-import { Lock, Eye, EyeOff, CheckCircle } from 'lucide-react';
+import { Lock, Eye, EyeOff, CheckCircle, X } from 'lucide-react';
 import { isPasswordValid } from '../utils/passwordUtils';
 
 export const ResetPassword: React.FC = () => {
@@ -203,6 +203,3 @@ export const ResetPassword: React.FC = () => {
         </div>
     );
 };
-
-// Missing import
-import { X } from 'lucide-react';
