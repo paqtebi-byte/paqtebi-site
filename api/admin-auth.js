@@ -1,6 +1,10 @@
 import crypto from "node:crypto";
+import {
+  clearAdminSessionCookie,
+  getAdminSessionFromRequest,
+  setAdminSessionCookie,
+} from "../server/adminSession.js";
 
-const TOKEN_TTL_SECONDS = 60 * 60 * 8;
 const ADMIN_ROLES = new Set(["owner", "admin"]);
 
 function getConfig() {
@@ -45,44 +49,6 @@ function hashPassword(password) {
 
 function verifyPassword(password, hash) {
   return hashPassword(password) === hash;
-}
-
-function base64UrlEncode(value) {
-  return Buffer.from(value).toString("base64url");
-}
-
-function base64UrlDecode(value) {
-  return Buffer.from(value, "base64url").toString("utf8");
-}
-
-function signPayload(payload, secret) {
-  return crypto.createHmac("sha256", secret).update(payload).digest("base64url");
-}
-
-function createToken(admin, secret) {
-  const payload = base64UrlEncode(JSON.stringify({
-    sub: admin.id,
-    username: admin.username,
-    email: admin.email,
-    role: admin.role,
-    exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS,
-  }));
-  return `${payload}.${signPayload(payload, secret)}`;
-}
-
-function verifyToken(token, secret) {
-  if (!token || !token.includes(".")) return null;
-  const [payload, signature] = token.split(".");
-  const expected = signPayload(payload, secret);
-
-  try {
-    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
-    const data = JSON.parse(base64UrlDecode(payload));
-    if (!data.exp || data.exp < Math.floor(Date.now() / 1000)) return null;
-    return data;
-  } catch {
-    return null;
-  }
 }
 
 async function supabaseRequest(path, options = {}) {
@@ -154,9 +120,8 @@ async function getAdminById(id) {
   return admin;
 }
 
-async function requireAdmin(token, requiredRole = "admin") {
-  const { sessionSecret } = getConfig();
-  const tokenData = verifyToken(token, sessionSecret);
+async function requireAdmin(request, requiredRole = "admin") {
+  const tokenData = getAdminSessionFromRequest(request);
   if (!tokenData?.sub) return null;
 
   const admin = await getAdminById(tokenData.sub);
@@ -227,22 +192,22 @@ async function handleLogin(body, response) {
     createdAt: admin.created_at,
   };
 
+  setAdminSessionCookie(response, safeAdmin);
   return json(response, 200, {
     success: true,
     message: "წარმატებით შეხვედით სისტემაში",
     admin: safeAdmin,
-    token: createToken(safeAdmin, sessionSecret),
   });
 }
 
-async function handleSession(body, response) {
-  const admin = await requireAdmin(body.token);
+async function handleSession(response, request) {
+  const admin = await requireAdmin(request);
   if (!admin) return json(response, 401, { success: false });
   return json(response, 200, { success: true, admin });
 }
 
-async function handleListAdmins(body, response) {
-  const owner = await requireAdmin(body.token, "owner");
+async function handleListAdmins(response, request) {
+  const owner = await requireAdmin(request, "owner");
   if (!owner) return json(response, 403, { success: false, message: "მხოლოდ owner-ს შეუძლია ადმინების მართვა" });
 
   const admins = await supabaseRequest(
@@ -251,9 +216,9 @@ async function handleListAdmins(body, response) {
   return json(response, 200, { success: true, admins });
 }
 
-async function handleListPublicUsers(body, response) {
+async function handleListPublicUsers(response, request) {
   try {
-    const admin = await requireAdmin(body.token, "admin");
+    const admin = await requireAdmin(request, "admin");
     if (!admin) {
       return json(response, 403, { success: false, message: "მხოლოდ ადმინებს აქვთ წვდომა" });
     }
@@ -277,8 +242,8 @@ async function handleListPublicUsers(body, response) {
   }
 }
 
-async function handleCreateAdmin(body, response) {
-  const owner = await requireAdmin(body.token, "owner");
+async function handleCreateAdmin(body, response, request) {
+  const owner = await requireAdmin(request, "owner");
   if (!owner) return json(response, 403, { success: false, message: "მხოლოდ owner-ს შეუძლია ადმინის დამატება" });
 
   const username = String(body.username || "").trim();
@@ -384,8 +349,8 @@ async function handleRegisterPublic(body, response) {
   }
 }
 
-async function handleUpdateRole(body, response) {
-  const owner = await requireAdmin(body.token, "owner");
+async function handleUpdateRole(body, response, request) {
+  const owner = await requireAdmin(request, "owner");
   if (!owner) return json(response, 403, { success: false, message: "მხოლოდ owner-ს შეუძლია როლის შეცვლა" });
 
   const role = body.role === "owner" ? "owner" : "admin";
@@ -401,8 +366,8 @@ async function handleUpdateRole(body, response) {
   return json(response, 200, { success: true });
 }
 
-async function handleDeleteAdmin(body, response) {
-  const owner = await requireAdmin(body.token, "owner");
+async function handleDeleteAdmin(body, response, request) {
+  const owner = await requireAdmin(request, "owner");
   if (!owner) return json(response, 403, { success: false, message: "მხოლოდ owner-ს შეუძლია ადმინის წაშლა" });
 
   const id = String(body.id || "");
@@ -456,14 +421,18 @@ export default async function handler(request, response) {
   try {
     const body = await readBody(request);
     if (body.action === "login") return handleLogin(body, response);
-    if (body.action === "session") return handleSession(body, response);
+    if (body.action === "logout") {
+      clearAdminSessionCookie(response);
+      return json(response, 200, { success: true });
+    }
+    if (body.action === "session") return handleSession(response, request);
     if (body.action === "resolveLogin") return handleResolveLogin(body, response);
-    if (body.action === "listAdmins") return handleListAdmins(body, response);
-    if (body.action === "listPublicUsers") return handleListPublicUsers(body, response);
-    if (body.action === "createAdmin") return handleCreateAdmin(body, response);
+    if (body.action === "listAdmins") return handleListAdmins(response, request);
+    if (body.action === "listPublicUsers") return handleListPublicUsers(response, request);
+    if (body.action === "createAdmin") return handleCreateAdmin(body, response, request);
     if (body.action === "registerPublic") return handleRegisterPublic(body, response);
-    if (body.action === "updateRole") return handleUpdateRole(body, response);
-    if (body.action === "deleteAdmin") return handleDeleteAdmin(body, response);
+    if (body.action === "updateRole") return handleUpdateRole(body, response, request);
+    if (body.action === "deleteAdmin") return handleDeleteAdmin(body, response, request);
     return json(response, 400, { success: false, message: "Unknown action" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";

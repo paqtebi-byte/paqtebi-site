@@ -41,10 +41,10 @@ export const useAuth = () => {
     });
 
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'paqtebi_admin_auth') {
-        refreshAdminSession();
-      } else if (event.key === 'paqtebi_current_admin') {
-        setCurrentAdmin(getCurrentAdmin());
+      if (event.key === 'paqtebi_current_admin') {
+        const admin = getCurrentAdmin();
+        setCurrentAdmin(admin);
+        setIsAdminAuthenticated(Boolean(admin));
       } else if (event.key === 'paqtebi_current_user') {
         setCurrentUser(getPublicCurrentUser());
       } else if (event.key === null) {
@@ -61,8 +61,8 @@ export const useAuth = () => {
     };
   }, []);
 
-  const logoutAdmin = () => {
-    logoutAdminService();
+  const logoutAdmin = async () => {
+    await logoutAdminService();
     setCurrentAdmin(null);
     setIsAdminAuthenticated(false);
   };

@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
+import { getAdminSessionFromRequest } from "../server/adminSession.js";
 
 const MAX_IMAGE_DATA_LENGTH = 8 * 1024 * 1024;
-const ADMIN_ROLES = new Set(["owner", "admin"]);
 
 function json(response, status, body) {
   response.statusCode = status;
@@ -18,32 +18,6 @@ async function readBody(request) {
     return JSON.parse(raw);
   } catch {
     return {};
-  }
-}
-
-function base64UrlDecode(value) {
-  return Buffer.from(value, "base64url").toString("utf8");
-}
-
-function signPayload(payload, secret) {
-  return crypto.createHmac("sha256", secret).update(payload).digest("base64url");
-}
-
-function verifyAdminToken(token) {
-  const secret = process.env.ADMIN_SESSION_SECRET || process.env.ADMIN_SECRET_CODE;
-  if (!secret || !token || !token.includes(".")) return null;
-
-  const [payload, signature] = token.split(".");
-  const expected = signPayload(payload, secret);
-
-  try {
-    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
-    const data = JSON.parse(base64UrlDecode(payload));
-    if (!data.exp || data.exp < Math.floor(Date.now() / 1000)) return null;
-    if (!ADMIN_ROLES.has(data.role)) return null;
-    return data;
-  } catch {
-    return null;
   }
 }
 
@@ -105,7 +79,7 @@ export default async function handler(request, response) {
 
   try {
     const body = await readBody(request);
-    const admin = verifyAdminToken(body.token);
+    const admin = getAdminSessionFromRequest(request);
     if (!admin) {
       return json(response, 401, { success: false, message: "Admin session is invalid" });
     }

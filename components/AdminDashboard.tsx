@@ -5,7 +5,6 @@ import { useArticlesContext } from '../context/ArticlesContext';
 import { useBreakingNews } from '../hooks/useBreakingNews';
 import { useComments } from '../hooks/useComments';
 import {
-  logoutAdmin,
   getCurrentAdmin,
   listAdminUsers,
   listPublicUsers,
@@ -28,6 +27,7 @@ import {
 } from 'lucide-react';
 import { CATEGORY_GROUPS } from '../config';
 import { useToast } from '../context/ToastContext';
+import { useAuthContext } from '../context/AuthContext';
 import { sanitizeInput } from '../utils/security';
 import { normalizeArticleHtml } from '../utils/articleHtml';
 import { formatDayMonthYear, getTodayDayMonthYear } from '../utils/dateFormat';
@@ -74,6 +74,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const { breakingNews, addTickerItem, removeTickerItem } = useBreakingNews();
   const { comments, removeComment, refreshComments } = useComments();
   const { addToast } = useToast();
+  const { logoutAdmin } = useAuthContext();
 
   const [activeTab, setActiveTab] = useState<Tab>('ANALYTICS');
   const [users, setUsers] = useState<AdminUserRecord[]>([]);

@@ -58,8 +58,6 @@ const clearAdminCache = (): void => {
   localStorage.removeItem(STORAGE_KEY_CURRENT_ADMIN);
 };
 
-const getAdminToken = (): string | null => localStorage.getItem(STORAGE_KEY_ADMIN_AUTH);
-
 const cacheAdmin = (
   id: string,
   username: string,
@@ -76,6 +74,7 @@ const cacheAdmin = (
     failedLoginAttempts: 0,
   };
 
+  localStorage.removeItem(STORAGE_KEY_ADMIN_AUTH);
   localStorage.setItem(STORAGE_KEY_CURRENT_ADMIN, JSON.stringify(safeAdmin));
   return safeAdmin;
 };
@@ -116,6 +115,7 @@ const callAdminApi = async <T,>(payload: Record<string, unknown>): Promise<T> =>
   const response = await fetch('/api/admin-auth', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
+    credentials: 'same-origin',
     body: JSON.stringify(payload),
   });
 
@@ -137,16 +137,9 @@ const callAdminApi = async <T,>(payload: Record<string, unknown>): Promise<T> =>
 };
 
 export const getAdminFromSession = async (): Promise<Omit<AdminAccount, 'passwordHash'> | null> => {
-  const token = getAdminToken();
-  if (!token) {
-    clearAdminCache();
-    return null;
-  }
-
   try {
     const data = await callAdminApi<{ success: boolean; admin: AdminUserRecord }>({
       action: 'session',
-      token,
     });
     return cacheAdmin(data.admin.id, data.admin.username, data.admin.email, data.admin.role);
   } catch {
@@ -225,7 +218,6 @@ export const loginAdminSecure = async (login: string, password: string, secretCo
       success: boolean;
       message: string;
       admin: AdminUserRecord;
-      token: string;
     }>({
       action: 'login',
       login,
@@ -233,7 +225,6 @@ export const loginAdminSecure = async (login: string, password: string, secretCo
       secretCode,
     });
 
-    localStorage.setItem(STORAGE_KEY_ADMIN_AUTH, data.token);
     const safeAdmin = cacheAdmin(data.admin.id, data.admin.username, data.admin.email, data.admin.role);
 
     // Establish a native Supabase Auth session so auth.uid() is populated for RLS.
@@ -257,6 +248,7 @@ export const loginAdminSecure = async (login: string, password: string, secretCo
           `SELECT supabase_auth_admin.create_user('${data.admin.email}', '<password>');`
         );
         // Clean up the custom token since we can't do any RLS-protected operations
+        await callAdminApi({ action: 'logout' }).catch(() => undefined);
         clearAdminCache();
         return {
           success: false,
@@ -280,42 +272,28 @@ export const loginAdminSecure = async (login: string, password: string, secretCo
 
 /**
  * Unified login entry point used by the login form.
- * - secretCode provided → owner path (loginAdminSecure): custom token + Supabase Auth session.
- * - secretCode omitted  → admin path (loginAdmin):        Supabase Auth session only.
- *
- * Username → email resolution always goes through the backend API (service role key)
- * so the anon-key client never needs to read public.users before authentication.
+ * The backend creates the HttpOnly admin session for both roles; only owners
+ * are required to provide the additional secret code.
  */
 export const loginAdminUnified = async (
   login: string,
   password: string,
   secretCode: string,
 ): Promise<AdminAuthResponse> => {
-  if (secretCode.trim()) {
-    return loginAdminSecure(login, password, secretCode);
-  }
-  // No secret code — regular admin path.
-  // loginAdmin handles username→email resolution via backend resolveLogin.
-  return loginAdmin(login, password);
+  return loginAdminSecure(login, password, secretCode);
 };
 
 export const listAdminUsers = async (): Promise<AdminUserRecord[]> => {
-  const token = getAdminToken();
-  if (!token) return [];
   const data = await callAdminApi<{ success: boolean; admins: AdminUserRecord[] }>({
     action: 'listAdmins',
-    token,
   });
   return data.admins;
 };
 
 export const listPublicUsers = async (): Promise<AdminUserRecord[]> => {
-  const token = getAdminToken();
-  if (!token) return [];
   try {
     const data = await callAdminApi<{ success: boolean; users: AdminUserRecord[] }>({
       action: 'listPublicUsers',
-      token,
     });
     return data.users || [];
   } catch {
@@ -326,26 +304,19 @@ export const listPublicUsers = async (): Promise<AdminUserRecord[]> => {
 export const createAdminUser = async (
   input: Pick<AdminUserRecord, 'username' | 'email' | 'role'> & { password: string },
 ): Promise<AdminUserRecord> => {
-  const token = getAdminToken();
-  if (!token) throw new Error('Admin session is missing');
   const data = await callAdminApi<{ success: boolean; admin: AdminUserRecord }>({
     action: 'createAdmin',
-    token,
     ...input,
   });
   return data.admin;
 };
 
 export const updateAdminUserRole = async (id: string, role: AdminUserRecord['role']): Promise<void> => {
-  const token = getAdminToken();
-  if (!token) throw new Error('Admin session is missing');
-  await callAdminApi({ action: 'updateRole', token, id, role });
+  await callAdminApi({ action: 'updateRole', id, role });
 };
 
 export const deleteAdminUser = async (id: string): Promise<void> => {
-  const token = getAdminToken();
-  if (!token) throw new Error('Admin session is missing');
-  await callAdminApi({ action: 'deleteAdmin', token, id });
+  await callAdminApi({ action: 'deleteAdmin', id });
 };
 
 export const requestPasswordReset = async (email: string): Promise<AdminAuthResponse> => {
@@ -417,10 +388,15 @@ export const getCurrentAdmin = (): Omit<AdminAccount, 'passwordHash'> | null => 
   return data ? JSON.parse(data) : null;
 };
 
-export const logoutAdmin = (): void => {
+export const logoutAdmin = async (): Promise<void> => {
+  try {
+    await callAdminApi({ action: 'logout' });
+  } catch {
+    // Local state is still cleared if the server is temporarily unavailable.
+  }
   const supabase = getSupabaseClient();
   if (supabase) {
-    supabase.auth.signOut().catch(() => undefined);
+    await supabase.auth.signOut().catch(() => undefined);
   }
   clearAdminCache();
 };
