@@ -142,8 +142,14 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [currentDateTime, setCurrentDateTime] = useState(() => new Date());
   const sidebarRef = useRef<HTMLDivElement | null>(null);
 
+  useEffect(() => {
+    const updateDateTime = () => setCurrentDateTime(new Date());
+    const intervalId = window.setInterval(updateDateTime, 30_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
     const onScroll = () => {
@@ -250,9 +256,8 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
   const displayedFeedArticles = viewMode === "home"
     ? filteredFeedArticles.slice(0, 20)
     : filteredFeedArticles;
-  const now = new Date();
-  const timeStr = now.toLocaleTimeString("ka-GE", { hour: "2-digit", minute: "2-digit" });
-  const dateStr = now.toLocaleDateString("ka-GE", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  const timeStr = currentDateTime.toLocaleTimeString("ka-GE", { hour: "2-digit", minute: "2-digit" });
+  const dateStr = currentDateTime.toLocaleDateString("ka-GE", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
   const feedTitle =
     viewMode === "saved"
       ? "შენახული სტატიები"
@@ -277,23 +282,6 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
           />
         )}
       </Suspense>
-
-      {/* ── TOP BAR ───────────────────────────────────────────── */}
-      <div className="hidden lg:flex bg-news-black text-white px-6 py-2 justify-between items-center text-xs">
-        <div className="flex items-center gap-4 text-gray-400">
-          <div className="flex items-center gap-1.5">
-            <Clock size={11} />
-            <span>{timeStr}</span>
-          </div>
-          <span className="text-gray-600">|</span>
-          <span>{dateStr}</span>
-        </div>
-        <div className="flex items-center gap-6 text-gray-400">
-          {["Facebook", "Twitter", "YouTube", "Instagram"].map((s) => (
-            <a key={s} href="#" className="hover:text-white transition-colors">{s}</a>
-          ))}
-        </div>
-      </div>
 
       {/* ── NAVBAR ────────────────────────────────────────────── */}
       <header
@@ -556,6 +544,17 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
           >
             <CurrencyWidget />
             <WeatherWidget />
+            <div className="mt-1 flex items-start justify-end gap-2 border-t border-white/20 pt-3 text-right text-white drop-shadow-md">
+              <Clock size={14} className="mt-0.5 shrink-0 text-white/80" aria-hidden="true" />
+              <div className="flex flex-col">
+                <time className="text-sm font-bold leading-none" dateTime={currentDateTime.toISOString()}>
+                  {timeStr}
+                </time>
+                <span className="mt-1 text-[11px] font-medium leading-snug text-white/80">
+                  {dateStr}
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Content */}
