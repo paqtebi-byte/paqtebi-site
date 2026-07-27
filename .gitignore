@@ -11,6 +11,9 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+.env.*
+!.env.example
 .env.local
 
 # Supabase CLI local state
@@ -28,7 +31,10 @@ supabase/.temp/
 *.sw?
 test.css
 codex-git-index.tmp
+*.tmp
 
 # Temporary test files
 test.*
 nbg_test.json
+nbg_headers.txt
+orphaned.json
