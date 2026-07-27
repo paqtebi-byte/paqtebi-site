@@ -8,11 +8,71 @@ type ArticleCacheKey = string; // e.g., "all_1_20"
 const articleCache: Partial<Record<ArticleCacheKey, Article[]>> = {};
 let articleCacheVersion = 0;
 
+const HOME_PAGE_CACHE_KEY = "paqtebi_home_page_cache_v1";
+const HOME_PAGE_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+type HomePageCache = {
+  articles: Article[];
+  heroArticle: Article | null;
+  page: number;
+  totalPages: number;
+  savedAt: number;
+};
+
+const readHomePageCache = (): HomePageCache | null => {
+  if (typeof sessionStorage === "undefined") return null;
+
+  try {
+    const raw = sessionStorage.getItem(HOME_PAGE_CACHE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<HomePageCache>;
+    const cachedArticles = parsed.articles;
+    const cachedAt = parsed.savedAt;
+    const isValid =
+      Array.isArray(cachedArticles) &&
+      typeof cachedAt === "number" &&
+      Date.now() - cachedAt < HOME_PAGE_CACHE_MAX_AGE_MS;
+
+    if (!isValid) {
+      sessionStorage.removeItem(HOME_PAGE_CACHE_KEY);
+      return null;
+    }
+
+    return {
+      articles: cachedArticles,
+      heroArticle: parsed.heroArticle ?? null,
+      page: Number(parsed.page || 1),
+      totalPages: Math.max(1, Number(parsed.totalPages || 1)),
+      savedAt: cachedAt,
+    };
+  } catch {
+    sessionStorage.removeItem(HOME_PAGE_CACHE_KEY);
+    return null;
+  }
+};
+
+const writeHomePageCache = (cache: Omit<HomePageCache, "savedAt">) => {
+  if (typeof sessionStorage === "undefined") return;
+
+  try {
+    sessionStorage.setItem(HOME_PAGE_CACHE_KEY, JSON.stringify({
+      ...cache,
+      savedAt: Date.now(),
+    }));
+  } catch {
+    // Storage can be unavailable or full. Network loading still works normally.
+  }
+};
+
 const invalidateArticleCache = () => {
   articleCacheVersion += 1;
   Object.keys(articleCache).forEach((key) => {
     delete articleCache[key];
   });
+  if (typeof sessionStorage !== "undefined") {
+    sessionStorage.removeItem(HOME_PAGE_CACHE_KEY);
+  }
 };
 
 const applyViewCountUpdate = (
@@ -34,22 +94,31 @@ const applyViewCountUpdate = (
 const FEED_PAGE_SIZE = 20;
 
 export const useArticles = () => {
-  const [articles, setArticles] = useState<Article[]>(() => articleCache["all_1_20"] ?? []);
+  const [initialHomeCache] = useState<HomePageCache | null>(readHomePageCache);
+  const [articles, setArticles] = useState<Article[]>(() => initialHomeCache?.articles ?? []);
   const [adminArticles, setAdminArticles] = useState<Article[]>([]);
-  const [heroArticle, setHeroArticle] = useState<Article | null>(null);
-  const [loading, setLoading] = useState<boolean>(() => !articleCache["all_1_20"]);
+  const [heroArticle, setHeroArticle] = useState<Article | null>(() => initialHomeCache?.heroArticle ?? null);
+  const [loading, setLoading] = useState<boolean>(() => !initialHomeCache);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [page, setPage] = useState(() => initialHomeCache?.page ?? 1);
+  const [totalPages, setTotalPages] = useState(() => initialHomeCache?.totalPages ?? 1);
 
-  const loadNews = useCallback(async (contentType: NonNullable<Article["contentType"]> | "all" = "all", pageParam: number = 1, limitParam: number = FEED_PAGE_SIZE, heroId?: string, feedOnly: boolean = false) => {
+  const loadNews = useCallback(async (
+    contentType: NonNullable<Article["contentType"]> | "all" = "all",
+    pageParam: number = 1,
+    limitParam: number = FEED_PAGE_SIZE,
+    heroId?: string,
+    feedOnly: boolean = false,
+    showLoading: boolean = true,
+    preserveVisibleArticlesOnEmpty: boolean = false,
+  ) => {
     const requestCacheVersion = articleCacheVersion;
     const cacheKey = `${contentType}_${pageParam}_${limitParam}_${heroId || ""}_${feedOnly ? "feed" : "all"}`;
     const cachedArticles = articleCache[cacheKey];
     if (cachedArticles) {
       setArticles(cachedArticles);
-      setLoading(false);
-    } else {
+      if (showLoading) setLoading(false);
+    } else if (showLoading) {
       setLoading(true);
     }
 
@@ -61,6 +130,10 @@ export const useArticles = () => {
       const localNews = result.data;
       if (requestCacheVersion !== articleCacheVersion) return;
 
+      if (preserveVisibleArticlesOnEmpty && localNews.length === 0) {
+        return result;
+      }
+
       articleCache[cacheKey] = localNews;
       if (contentType === "all") {
         articleCache[`article_${pageParam}_${limitParam}`] = localNews.filter((article) => (article.contentType || "article") === "article");
@@ -68,7 +141,12 @@ export const useArticles = () => {
       setArticles(localNews);
       setTotalPages(Math.ceil(result.count / limitParam) || 1);
       setPage(pageParam);
+      return result;
     } catch (err) {
+      if (!showLoading) {
+        console.error("Background article refresh failed", err);
+        return null;
+      }
       setError("ვერ მოხერხდა ახალი ამბების ჩატვირთვა.");
       console.error("Failed to fetch articles after retry", err);
     } finally {
@@ -84,12 +162,54 @@ export const useArticles = () => {
    */
   const loadAllNews = useCallback(async (p: number = 1) => {
     const requestCacheVersion = articleCacheVersion;
+    const cachedHome = p === 1 ? readHomePageCache() : null;
+
+    if (cachedHome) {
+      setArticles(cachedHome.articles);
+      setHeroArticle(cachedHome.heroArticle);
+      setPage(cachedHome.page);
+      setTotalPages(cachedHome.totalPages);
+      setLoading(false);
+      setError(null);
+    }
+
+    if (cachedHome?.heroArticle?.id) {
+      // Keep cached content visible while hero and feed revalidate in parallel.
+      const [freshHero, firstFeedResult] = await Promise.all([
+        apiService.fetchHeroArticle().catch(() => cachedHome.heroArticle),
+        loadNews("all", p, FEED_PAGE_SIZE, cachedHome.heroArticle.id, true, false, true),
+      ]);
+
+      if (requestCacheVersion !== articleCacheVersion) return;
+
+      const resolvedHero = freshHero ?? cachedHome.heroArticle;
+      let feedResult = firstFeedResult;
+      if (resolvedHero.id !== cachedHome.heroArticle.id) {
+        // Preserve the exact 20-item pagination contract if the hero changed.
+        feedResult = await loadNews("all", p, FEED_PAGE_SIZE, resolvedHero.id, true, false, true);
+      }
+
+      if (requestCacheVersion !== articleCacheVersion) return;
+      setHeroArticle(resolvedHero);
+
+      if (feedResult?.data.length) {
+        writeHomePageCache({
+          articles: feedResult.data,
+          heroArticle: resolvedHero,
+          page: p,
+          totalPages: Math.ceil(feedResult.count / FEED_PAGE_SIZE) || 1,
+        });
+      }
+      return;
+    }
     // Step 1: Fetch hero article (autonomous, only once — stays the same across pages)
     let currentHeroId: string | undefined;
+    let loadedHero: Article | null = null;
     try {
       const hero = await apiService.fetchHeroArticle();
       if (requestCacheVersion !== articleCacheVersion) return;
 
+      loadedHero = hero;
       setHeroArticle(hero);
       currentHeroId = hero?.id;
     } catch {
@@ -98,7 +218,15 @@ export const useArticles = () => {
     }
 
     // Step 2: Fetch feed articles, excluding the hero
-    await loadNews("all", p, FEED_PAGE_SIZE, currentHeroId, true);
+    const feedResult = await loadNews("all", p, FEED_PAGE_SIZE, currentHeroId, true);
+    if (p === 1 && feedResult?.data.length) {
+      writeHomePageCache({
+        articles: feedResult.data,
+        heroArticle: loadedHero,
+        page: p,
+        totalPages: Math.ceil(feedResult.count / FEED_PAGE_SIZE) || 1,
+      });
+    }
   }, [loadNews]);
 
   const loadArticleNews = useCallback((p: number = 1) => loadNews("article", p), [loadNews]);
