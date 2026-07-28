@@ -633,7 +633,7 @@ class RemoteApiService {
       const { data, error } = await this.supabase!
         .from(DATABASE_CONFIG.TABLES.ARTICLES)
         .insert([payload])
-        .select("id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived")
+        .select("id, title, summary, content, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived")
         .single();
 
       if (error) {
@@ -684,7 +684,7 @@ class RemoteApiService {
         .from(DATABASE_CONFIG.TABLES.ARTICLES)
         .update(updatePayload)
         .eq("id", id)
-        .select("id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived")
+        .select("id, title, summary, content, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived")
         .single();
 
       if (error) {

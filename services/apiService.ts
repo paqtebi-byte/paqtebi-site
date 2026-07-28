@@ -16,7 +16,8 @@ class ApiService {
   private heroCache: { data: Article | null; timestamp: number } | null = null;
   private heroRequest: Promise<Article | null> | null = null;
 
-  private clearArticleCache() {
+  /** Clear article data cached by this browser tab. */
+  invalidateArticleCache() {
     this.articleCacheGeneration += 1;
     this.articleCache.clear();
     this.articleRequests.clear();
@@ -119,7 +120,7 @@ class ApiService {
    */
   async insertArticle(article: Omit<Article, "id">): Promise<Article | null> {
     const saved = await RemoteApiService.insertArticle(article);
-    this.clearArticleCache();
+    this.invalidateArticleCache();
     return saved;
   }
 
@@ -131,7 +132,7 @@ class ApiService {
     article: Partial<Article>,
   ): Promise<Article | null> {
     const saved = await RemoteApiService.updateArticle(id, article);
-    this.clearArticleCache();
+    this.invalidateArticleCache();
     return saved;
   }
 
@@ -140,7 +141,7 @@ class ApiService {
    */
   async deleteArticle(id: string): Promise<boolean> {
     const deleted = await RemoteApiService.deleteArticle(id);
-    this.clearArticleCache();
+    this.invalidateArticleCache();
     return deleted;
   }
 
@@ -186,7 +187,7 @@ class ApiService {
   }
 
   async trackArticleView(articleId: string): Promise<number | null> {
-    this.clearArticleCache();
+    this.invalidateArticleCache();
     return RemoteApiService.trackArticleView(articleId);
   }
 

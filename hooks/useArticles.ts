@@ -11,6 +11,7 @@ let latestListRequestId = 0;
 
 const HOME_PAGE_CACHE_KEY = "paqtebi_home_page_cache_v1";
 const HOME_PAGE_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const ARTICLE_MUTATION_STORAGE_KEY = "paqtebi_article_mutation_v1";
 
 type HomePageCache = {
   articles: Article[];
@@ -103,6 +104,7 @@ export const useArticles = () => {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(() => initialHomeCache?.page ?? 1);
   const [totalPages, setTotalPages] = useState(() => initialHomeCache?.totalPages ?? 1);
+  const [articleRevision, setArticleRevision] = useState(0);
 
   const loadNews = useCallback(async (
     contentType: NonNullable<Article["contentType"]> | "all" = "all",
@@ -250,6 +252,35 @@ export const useArticles = () => {
     [loadNews],
   );
 
+  // Article lists are cached per browser tab. When an administrator saves in
+  // another tab, invalidate this tab too so both the feed and an already-open
+  // article detail page can immediately request the saved version.
+  useEffect(() => {
+    const handleArticleMutation = (event: StorageEvent) => {
+      if (event.key !== ARTICLE_MUTATION_STORAGE_KEY || !event.newValue) return;
+
+      apiService.invalidateArticleCache();
+      invalidateArticleCache();
+      setArticleRevision((revision) => revision + 1);
+      void loadAllNews(1);
+    };
+
+    window.addEventListener("storage", handleArticleMutation);
+    return () => window.removeEventListener("storage", handleArticleMutation);
+  }, [loadAllNews]);
+
+  const announceArticleMutation = (id: string) => {
+    setArticleRevision((revision) => revision + 1);
+    try {
+      localStorage.setItem(ARTICLE_MUTATION_STORAGE_KEY, JSON.stringify({
+        id,
+        timestamp: Date.now(),
+      }));
+    } catch {
+      // Cross-tab refresh is best-effort; the current tab is already refreshed.
+    }
+  };
+
   useEffect(() => {
     const handleViewTracked = (event: Event) => {
       const detail = (event as CustomEvent<{ articleId?: string; viewCount?: number }>).detail;
@@ -305,6 +336,7 @@ export const useArticles = () => {
         throw new Error("Article was not saved");
       }
       invalidateArticleCache();
+      announceArticleMutation(savedArticle.id);
       await refreshLocalOnly();
       await loadAllNews(1);
     } catch (error) {
@@ -320,6 +352,7 @@ export const useArticles = () => {
         throw new Error("Article was not updated");
       }
       invalidateArticleCache();
+      announceArticleMutation(id);
       await refreshLocalOnly();
       await loadAllNews(1);
     } catch (error) {
@@ -331,6 +364,7 @@ export const useArticles = () => {
   const removeArticle = async (id: string) => {
     await apiService.deleteArticle(id);
     invalidateArticleCache();
+    announceArticleMutation(id);
     await refreshLocalOnly();
     await loadAllNews(1);
   };
@@ -351,6 +385,7 @@ export const useArticles = () => {
     error,
     page,
     totalPages,
+    articleRevision,
     loadAllNews,
     loadArticleNews,
     loadCategoryNews,

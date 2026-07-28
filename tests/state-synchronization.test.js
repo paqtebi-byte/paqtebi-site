@@ -30,10 +30,25 @@ test('article mutations invalidate hook cache and stale requests cannot repopula
   const hookSource = readSource('hooks/useArticles.ts');
   const serviceSource = readSource('services/apiService.ts');
 
-  assert.equal((hookSource.match(/invalidateArticleCache\(\);/g) || []).length, 3);
+  assert.equal((hookSource.match(/invalidateArticleCache\(\);/g) || []).length, 5);
   assert.match(hookSource, /requestCacheVersion !== articleCacheVersion/);
   assert.match(serviceSource, /articleCacheGeneration \+= 1/);
   assert.match(serviceSource, /requestGeneration === this\.articleCacheGeneration/);
   assert.match(serviceSource, /this\.articleRequests\.get\(key\) === request/);
   assert.match(serviceSource, /this\.heroRequest === request/);
+});
+
+test('article edits invalidate cached public content across browser tabs', () => {
+  const hookSource = readSource('hooks/useArticles.ts');
+  const appSource = readSource('App.tsx');
+  const serviceSource = readSource('services/apiService.ts');
+  const remoteSource = readSource('services/remoteApiService.ts');
+
+  assert.match(hookSource, /ARTICLE_MUTATION_STORAGE_KEY = "paqtebi_article_mutation_v1"/);
+  assert.match(hookSource, /window\.addEventListener\("storage", handleArticleMutation\)/);
+  assert.match(hookSource, /apiService\.invalidateArticleCache\(\)/);
+  assert.match(hookSource, /localStorage\.setItem\(ARTICLE_MUTATION_STORAGE_KEY/);
+  assert.match(appSource, /\[id, articleRevision\]/);
+  assert.match(serviceSource, /invalidateArticleCache\(\)/);
+  assert.match(remoteSource, /\.update\(updatePayload\)[\s\S]*?\.select\("id, title, summary, content, author/);
 });

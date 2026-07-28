@@ -907,7 +907,7 @@ const ArticleDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser, isAdminAuthenticated, currentAdmin, setCurrentUser } = useAuthContext();
-  const { articles, loading } = useArticlesContext();
+  const { articles, loading, articleRevision } = useArticlesContext();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   // undefined = not yet fetched, null = fetch done (not found), Article = fetched successfully
   const [fullArticle, setFullArticle] = useState<Article | null | undefined>(undefined);
@@ -928,7 +928,7 @@ const ArticleDetailPage: React.FC = () => {
       });
     });
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, articleRevision]);
 
   // While fetchArticleById is in-flight, show the partial article from state/cache
   // so the page title and thumbnail render immediately (no blank flash).
