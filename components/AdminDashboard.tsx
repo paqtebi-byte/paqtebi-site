@@ -29,6 +29,7 @@ import { useToast } from '../context/ToastContext';
 import { useAuthContext } from '../context/AuthContext';
 import { sanitizeInput } from '../utils/security';
 import { normalizeArticleHtml } from '../utils/articleHtml';
+import { syncLeadParagraphWithSummary } from '../utils/articleLead';
 import { formatDayMonthYear, getTodayDayMonthYear } from '../utils/dateFormat';
 import { uploadArticleImage } from '../services/mediaService';
 import { LazyImage } from './LazyImage';
@@ -317,10 +318,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     // Fetch the full article so the editor is pre-filled with the existing content.
     try {
       const fullArticle = await apiService.fetchArticleById(article.id);
-      setCurrentArticle({ ...(fullArticle ?? article), _originalId: article.id } as any);
+      const editableArticle = fullArticle ?? article;
+      setCurrentArticle({
+        ...editableArticle,
+        _originalId: article.id,
+        _originalSummary: editableArticle.summary || '',
+      } as any);
     } catch {
       // Fall back to the partial article if fetch fails
-      setCurrentArticle({ ...article, _originalId: article.id } as any);
+      setCurrentArticle({
+        ...article,
+        _originalId: article.id,
+        _originalSummary: article.summary || '',
+      } as any);
     }
 
     setIsEditing(true);
@@ -389,13 +399,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       if (!currentArticle.imageUrl && layout !== 'hero') {
         currentArticle.imageUrl = getRandomNewsImage();
       }
-      const { _originalId, ...articleData } = currentArticle as any;
+      const safeSummary = sanitizeInput(currentArticle.summary || '');
+      const originalSummary = (currentArticle as any)._originalSummary as string | undefined;
+      const synchronizedContent = syncLeadParagraphWithSummary(
+        currentArticle.content || '',
+        originalSummary,
+        safeSummary,
+      );
+      const { _originalId, _originalSummary, ...articleData } = currentArticle as any;
       const safeArticle = {
         ...articleData,
         layout,
         imageUrl: currentArticle.imageUrl || '',
         title: sanitizeInput(currentArticle.title),
-        summary: sanitizeInput(currentArticle.summary || ''),
+        summary: safeSummary,
         author: sanitizeInput(currentArticle.author || 'Admin'),
         category: sanitizeInput(currentArticle.category || 'მთავარი'),
         contentType,
@@ -404,7 +421,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         isLive: Boolean(currentArticle.isLive),
         liveStatus: isVideoType ? (currentArticle.liveStatus || 'scheduled') : undefined,
         content: needsArticleBody
-          ? normalizeArticleHtml(currentArticle.content || '')
+          ? normalizeArticleHtml(synchronizedContent)
           : '',
       } as Article;
       try {
