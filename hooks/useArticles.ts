@@ -92,6 +92,21 @@ const applyViewCountUpdate = (
   };
 });
 
+const applyViewCountSnapshot = (
+  articles: Article[],
+  viewCounts: Map<string, number>,
+) => articles.map((article) => {
+  const fetchedViewCount = viewCounts.get(article.id);
+  if (fetchedViewCount === undefined) return article;
+
+  return {
+    ...article,
+    // A view may be tracked while the background snapshot is in flight. Never
+    // replace that newer local value with an older, smaller snapshot.
+    viewCount: Math.max(Number(article.viewCount || 0), fetchedViewCount),
+  };
+});
+
 /** Number of articles displayed in the main feed per page (excluding hero) */
 const FEED_PAGE_SIZE = 20;
 
@@ -105,6 +120,59 @@ export const useArticles = () => {
   const [page, setPage] = useState(() => initialHomeCache?.page ?? 1);
   const [totalPages, setTotalPages] = useState(() => initialHomeCache?.totalPages ?? 1);
   const [articleRevision, setArticleRevision] = useState(0);
+
+  const hydrateVisibleViewCounts = useCallback((
+    visibleArticles: Article[],
+    visibleHero: Article | null,
+    requestCacheVersion: number,
+    listRequestId: number,
+  ) => {
+    const targetsById = new Map<string, Article>();
+    visibleArticles.forEach((article) => targetsById.set(article.id, article));
+    if (visibleHero) targetsById.set(visibleHero.id, visibleHero);
+    if (targetsById.size === 0) return;
+
+    void apiService.hydrateArticleViewCounts([...targetsById.values()])
+      .then((hydratedArticles) => {
+        if (
+          requestCacheVersion !== articleCacheVersion ||
+          listRequestId !== latestListRequestId
+        ) return;
+
+        const viewCounts = new Map(
+          hydratedArticles.map((article) => [article.id, Number(article.viewCount || 0)]),
+        );
+
+        Object.keys(articleCache).forEach((key) => {
+          const cacheKey = key as ArticleCacheKey;
+          const cachedArticles = articleCache[cacheKey];
+          if (cachedArticles) {
+            articleCache[cacheKey] = applyViewCountSnapshot(cachedArticles, viewCounts);
+          }
+        });
+
+        setArticles((currentArticles) => applyViewCountSnapshot(currentArticles, viewCounts));
+        setHeroArticle((currentHero) => {
+          if (!currentHero) return currentHero;
+          return applyViewCountSnapshot([currentHero], viewCounts)[0];
+        });
+
+        const cachedHome = readHomePageCache();
+        if (cachedHome?.page === 1) {
+          writeHomePageCache({
+            articles: applyViewCountSnapshot(cachedHome.articles, viewCounts),
+            heroArticle: cachedHome.heroArticle
+              ? applyViewCountSnapshot([cachedHome.heroArticle], viewCounts)[0]
+              : null,
+            page: cachedHome.page,
+            totalPages: cachedHome.totalPages,
+          });
+        }
+      })
+      .catch((error) => {
+        console.error("Background article view count refresh failed", error);
+      });
+  }, []);
 
   const loadNews = useCallback(async (
     contentType: NonNullable<Article["contentType"]> | "all" = "all",
@@ -211,6 +279,97 @@ export const useArticles = () => {
       return;
     }
     // Step 1: Fetch hero article (autonomous, only once — stays the same across pages)
+    if (p === 1) {
+      const listRequestId = ++latestListRequestId;
+      if (!cachedHome) setLoading(true);
+      setError(null);
+
+      try {
+        // On a cold visit, hero and feed are independent database queries. Run
+        // them together and defer analytics so useful content can paint first.
+        const [loadedHero, unfilteredFeedResult] = await Promise.all([
+          withSingleRetry(() => apiService.fetchHeroArticle(false)).catch(() => {
+            console.error("Failed to fetch hero article");
+            return null;
+          }),
+          withSingleRetry(() => apiService.fetchArticles(
+            "all",
+            1,
+            FEED_PAGE_SIZE + 1,
+            undefined,
+            true,
+            undefined,
+            false,
+          )),
+        ]);
+
+        if (
+          requestCacheVersion !== articleCacheVersion ||
+          listRequestId !== latestListRequestId
+        ) return;
+
+        // A dedicated layout='hero' row is not in the standard feed. The extra
+        // row still preserves 20 items if the hero query falls back to the
+        // newest standard article because no explicit hero exists.
+        const heroId = loadedHero?.id;
+        const heroWasInPrimaryFeed = Boolean(heroId && unfilteredFeedResult.data.some(
+          (article) => article.id === heroId && !(article as any)._isSupplementary,
+        ));
+        const primaryArticles = unfilteredFeedResult.data
+          .filter((article) => !(article as any)._isSupplementary && article.id !== heroId)
+          .slice(0, FEED_PAGE_SIZE);
+        const supplementaryArticles = unfilteredFeedResult.data.filter(
+          (article) => (article as any)._isSupplementary && article.id !== heroId,
+        );
+        const localNews = [...primaryArticles, ...supplementaryArticles];
+        const feedCount = Math.max(
+          0,
+          unfilteredFeedResult.count - (heroWasInPrimaryFeed ? 1 : 0),
+        );
+        const resolvedTotalPages = Math.ceil(feedCount / FEED_PAGE_SIZE) || 1;
+        const cacheKey = `all_1_${FEED_PAGE_SIZE}_${heroId || ""}_feed_all-categories`;
+
+        articleCache[cacheKey] = localNews;
+        articleCache[`article_1_${FEED_PAGE_SIZE}`] = localNews.filter(
+          (article) => (article.contentType || "article") === "article",
+        );
+        setArticles(localNews);
+        setHeroArticle(loadedHero);
+        setTotalPages(resolvedTotalPages);
+        setPage(1);
+
+        if (localNews.length) {
+          writeHomePageCache({
+            articles: localNews,
+            heroArticle: loadedHero,
+            page: 1,
+            totalPages: resolvedTotalPages,
+          });
+        }
+
+        hydrateVisibleViewCounts(
+          localNews,
+          loadedHero,
+          requestCacheVersion,
+          listRequestId,
+        );
+        return;
+      } catch (error) {
+        if (!cachedHome) {
+          setError("ვერ მოხერხდა ახალი ამბების ჩატვირთვა.");
+        }
+        console.error("Failed to load the initial home page after retry", error);
+        return;
+      } finally {
+        if (
+          requestCacheVersion === articleCacheVersion &&
+          listRequestId === latestListRequestId
+        ) {
+          setLoading(false);
+        }
+      }
+    }
+
     let currentHeroId: string | undefined;
     let loadedHero: Article | null = null;
     try {
@@ -235,7 +394,7 @@ export const useArticles = () => {
         totalPages: Math.ceil(feedResult.count / FEED_PAGE_SIZE) || 1,
       });
     }
-  }, [loadNews]);
+  }, [hydrateVisibleViewCounts, loadNews]);
 
   const loadArticleNews = useCallback((p: number = 1) => loadNews("article", p), [loadNews]);
   const loadCategoryNews = useCallback(

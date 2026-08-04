@@ -15,6 +15,8 @@ class ApiService {
   // Hero article: separate cache so it's fully autonomous
   private heroCache: { data: Article | null; timestamp: number } | null = null;
   private heroRequest: Promise<Article | null> | null = null;
+  private fastHeroCache: { data: Article | null; timestamp: number } | null = null;
+  private fastHeroRequest: Promise<Article | null> | null = null;
 
   /** Clear article data cached by this browser tab. */
   invalidateArticleCache() {
@@ -23,6 +25,8 @@ class ApiService {
     this.articleRequests.clear();
     this.heroCache = null;
     this.heroRequest = null;
+    this.fastHeroCache = null;
+    this.fastHeroRequest = null;
   }
 
   /**
@@ -35,9 +39,10 @@ class ApiService {
     excludeId?: string,
     feedOnly: boolean = false,
     category?: string,
+    includeViewCounts: boolean = true,
   ): Promise<{ data: Article[], count: number }> {
     const requestGeneration = this.articleCacheGeneration;
-    const key = `${contentType || "all"}_${page}_${limit}_${excludeId || ""}_${feedOnly ? "feed" : "all"}_${category || "all-categories"}`;
+    const key = `${contentType || "all"}_${page}_${limit}_${excludeId || ""}_${feedOnly ? "feed" : "all"}_${category || "all-categories"}_${includeViewCounts ? "with-views" : "fast"}`;
     const cached = this.articleCache.get(key);
     if (cached && Date.now() - cached.timestamp < this.ARTICLE_CACHE_TTL) {
       return { data: cached.data, count: cached.count };
@@ -46,7 +51,7 @@ class ApiService {
     const pending = this.articleRequests.get(key);
     if (pending) return pending;
 
-    const request = RemoteApiService.fetchArticles(contentType, page, limit, excludeId, feedOnly, category)
+    const request = RemoteApiService.fetchArticles(contentType, page, limit, excludeId, feedOnly, category, includeViewCounts)
       .then((result) => {
         if (requestGeneration === this.articleCacheGeneration) {
           this.articleCache.set(key, { data: result.data, count: result.count, timestamp: Date.now() });
@@ -71,7 +76,36 @@ class ApiService {
    * Fetch the hero article independently from the feed.
    * Cached separately with its own TTL.
    */
-  async fetchHeroArticle(): Promise<Article | null> {
+  async fetchHeroArticle(includeViewCounts: boolean = true): Promise<Article | null> {
+    if (!includeViewCounts) {
+      if (this.fastHeroCache && Date.now() - this.fastHeroCache.timestamp < this.ARTICLE_CACHE_TTL) {
+        return this.fastHeroCache.data;
+      }
+
+      if (this.fastHeroRequest) return this.fastHeroRequest;
+
+      const requestGeneration = this.articleCacheGeneration;
+      const request = RemoteApiService.fetchHeroArticle(false)
+        .then((hero) => {
+          if (requestGeneration === this.articleCacheGeneration) {
+            this.fastHeroCache = { data: hero, timestamp: Date.now() };
+          }
+          if (this.fastHeroRequest === request) {
+            this.fastHeroRequest = null;
+          }
+          return hero;
+        })
+        .catch((error) => {
+          if (this.fastHeroRequest === request) {
+            this.fastHeroRequest = null;
+          }
+          throw error;
+        });
+
+      this.fastHeroRequest = request;
+      return request;
+    }
+
     if (this.heroCache && Date.now() - this.heroCache.timestamp < this.ARTICLE_CACHE_TTL) {
       return this.heroCache.data;
     }
@@ -98,6 +132,10 @@ class ApiService {
 
     this.heroRequest = request;
     return request;
+  }
+
+  async hydrateArticleViewCounts(articles: Article[]): Promise<Article[]> {
+    return RemoteApiService.hydrateArticleViewCounts(articles);
   }
 
   /**

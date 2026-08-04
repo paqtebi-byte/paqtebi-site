@@ -10,7 +10,7 @@ const remoteSource = readFileSync(new URL('../services/remoteApiService.ts', imp
 test('category selection requests the full category from the data service', () => {
   assert.match(appSource, /loadCategoryNews\(category, 1\)/);
   assert.match(hookSource, /apiService\.fetchArticles\(contentType, pageParam, limitParam, heroId, feedOnly, category\)/);
-  assert.match(apiSource, /RemoteApiService\.fetchArticles\(contentType, page, limit, excludeId, feedOnly, category\)/);
+  assert.match(apiSource, /RemoteApiService\.fetchArticles\(contentType, page, limit, excludeId, feedOnly, category, includeViewCounts\)/);
   assert.match(remoteSource, /mainQuery = mainQuery\.eq\("category", category\)/);
 });
 

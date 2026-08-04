@@ -255,6 +255,14 @@ class RemoteApiService {
     }));
   }
 
+  /**
+   * Enrich already-visible articles with analytics without making the initial
+   * home-page content wait for the analytics function.
+   */
+  async hydrateArticleViewCounts(articles: Article[]): Promise<Article[]> {
+    return this.attachArticleViewCounts(articles);
+  }
+
   async fetchAnalytics(): Promise<Pick<AnalyticsData, "totalArticles" | "totalViews">> {
     try {
       const response = await fetchWithTimeout("/api/analytics");
@@ -336,6 +344,7 @@ class RemoteApiService {
     excludeId?: string,
     feedOnly: boolean = false,
     category?: string,
+    includeViewCounts: boolean = true,
   ): Promise<{ data: Article[], count: number }> {
     if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
       try {
@@ -355,9 +364,14 @@ class RemoteApiService {
         if (excludeId) {
           filteredArticles = filteredArticles.filter((a: Article) => a.id !== excludeId);
         }
-        const withViews = await this.attachArticleViewCounts(filteredArticles);
         const start = (page - 1) * limit;
-        return { data: withViews.slice(start, start + limit), count: withViews.length };
+        const pagedArticles = filteredArticles.slice(start, start + limit);
+        return {
+          data: includeViewCounts
+            ? await this.attachArticleViewCounts(pagedArticles)
+            : pagedArticles,
+          count: filteredArticles.length,
+        };
       } catch (error) {
         console.error("Error fetching articles from localStorage:", error);
         return { data: [], count: 0 };
@@ -454,7 +468,9 @@ class RemoteApiService {
       const combined = [...mainArticles, ...supplementaryArticles];
 
       return {
-        data: await this.attachArticleViewCounts(combined),
+        data: includeViewCounts
+          ? await this.attachArticleViewCounts(combined)
+          : combined,
         count: mainResult.count || 0
       };
     } catch (error) {
@@ -468,13 +484,14 @@ class RemoteApiService {
    * Returns the most recent article with layout='hero', or the newest article if none is marked as hero.
    * This is completely autonomous from the feed pagination.
    */
-  async fetchHeroArticle(): Promise<Article | null> {
+  async fetchHeroArticle(includeViewCounts: boolean = true): Promise<Article | null> {
     if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
       try {
         const articles = readLocalStorageJson<Article[]>(this.LOCAL_STORAGE_KEY, [], Array.isArray);
         const articleOnly = articles.filter((a) => (a.contentType || "article") === "article");
         const hero = articleOnly.find((a) => a.layout === "hero") || articleOnly[0] || null;
         if (!hero) return null;
+        if (!includeViewCounts) return hero;
         const withViews = await this.attachArticleViewCounts([hero]);
         return withViews[0] || null;
       } catch (error) {
@@ -497,6 +514,7 @@ class RemoteApiService {
 
       if (!heroError && heroData && heroData.length > 0) {
         const article = this.mapArticleFromDb(heroData[0]);
+        if (!includeViewCounts) return article;
         const withViews = await this.attachArticleViewCounts([article]);
         return withViews[0] || null;
       }
@@ -511,6 +529,7 @@ class RemoteApiService {
 
       if (!latestError && latestData && latestData.length > 0) {
         const article = this.mapArticleFromDb(latestData[0]);
+        if (!includeViewCounts) return article;
         const withViews = await this.attachArticleViewCounts([article]);
         return withViews[0] || null;
       }
