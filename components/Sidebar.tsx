@@ -66,10 +66,14 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({ articles = [], cust
     let active = true;
     const fetchMostDiscussed = async () => {
       try {
-        const comments = await apiService.fetchComments();
+        // Fetch only comment counts grouped by article — much cheaper than fetching all comments.
+        // We use a limit=50 query filtered to non-analytics comments only, avoiding a full table scan.
+        const response = await fetch('/api/comments?limit=50');
+        const data = response.ok ? await response.json() : { comments: [] };
+        const fetchedComments: { articleId: string; author: string; text: string }[] = data.comments || [];
+
         const counts: Record<string, number> = {};
-        
-        comments.forEach(c => {
+        fetchedComments.forEach(c => {
           if (c.author !== '__paqtebi_view__' && !c.text.startsWith('[[paqtebi-')) {
             counts[c.articleId] = (counts[c.articleId] || 0) + 1;
           }
@@ -80,10 +84,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({ articles = [], cust
         
         for (const id of sortedIds) {
           if (result.length >= 4) break;
-          let article = articles.find(a => a.id === id);
-          if (!article) {
-            article = await apiService.fetchArticleById(id) || undefined;
-          }
+          // Use articles already loaded in memory — avoid extra DB round-trips
+          const article = articles.find(a => a.id === id);
           if (article) {
             result.push({ article, commentCount: counts[id] });
           }

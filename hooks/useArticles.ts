@@ -475,7 +475,7 @@ export const useArticles = () => {
   }, []);
 
   const refreshLocalOnly = async () => {
-    const result = await apiService.fetchArticles("all", 1, 1000);
+    const result = await apiService.fetchArticles("all", 1, 100);
     const localNews = result.data;
     setAdminArticles(localNews);
 

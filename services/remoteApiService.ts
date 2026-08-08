@@ -420,7 +420,7 @@ class RemoteApiService {
           .eq("is_archived", false)
           .in("category", ["ვიდეო რეპორტაჟები", "პოდკასტები", "საინტერესო"])
           .order("created_at", { ascending: false })
-          .limit(15);
+          .limit(6);
 
         customSidebarQuery = this.supabase!
           .from(DATABASE_CONFIG.TABLES.ARTICLES)
@@ -430,7 +430,7 @@ class RemoteApiService {
           .eq("is_archived", false)
           .eq("layout", "sidebar")
           .order("created_at", { ascending: false })
-          .limit(15);
+          .limit(6);
       }
 
       const [mainResult, sidebarResult, customSidebarResult] = await Promise.all([

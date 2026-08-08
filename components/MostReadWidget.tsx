@@ -14,9 +14,16 @@ export const MostReadWidget: React.FC<MostReadWidgetProps> = ({ onArticleClick }
   const [refreshTick, setRefreshTick] = useState(0);
   const [rankedArticles, setRankedArticles] = useState<{article: Article, views: number}[]>([]);
 
+  const REFRESH_THROTTLE_MS = 5 * 60 * 1000; // 5 minutes
+  const lastRefreshRef = React.useRef<number>(0);
+
   useEffect(() => {
     const handleViewTracked = () => {
-      setRefreshTick(t => t + 1);
+      const now = Date.now();
+      // Only schedule a refresh if enough time has passed since the last one
+      if (now - lastRefreshRef.current >= REFRESH_THROTTLE_MS) {
+        setRefreshTick(t => t + 1);
+      }
     };
     window.addEventListener('paqtebi-article-view-tracked', handleViewTracked);
     return () => {
@@ -26,6 +33,7 @@ export const MostReadWidget: React.FC<MostReadWidgetProps> = ({ onArticleClick }
 
   useEffect(() => {
     let active = true;
+    lastRefreshRef.current = Date.now();
     apiService.fetchPopularArticles(5).then(fetched => {
       if (!active) return;
       setRankedArticles(

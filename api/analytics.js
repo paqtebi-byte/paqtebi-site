@@ -206,7 +206,32 @@ async function getExactCount(path) {
 }
 
 async function getArticleViewCounts(articleIds = []) {
-  const requestedIds = new Set(articleIds.filter(Boolean));
+  const requestedIds = articleIds.filter(Boolean);
+
+  // If specific article IDs are requested, use SQL COUNT per article via RPC-style
+  // grouped query. This avoids downloading every view row — just the counts.
+  if (requestedIds.length > 0) {
+    const counts = {};
+    // Fetch counts for each article individually using count=exact header.
+    // For small batches (≤20 ids) this is far cheaper than scanning all rows.
+    await Promise.all(
+      requestedIds.map(async (articleId) => {
+        try {
+          const count = await getExactCount(
+            `comments?author=eq.${encodeURIComponent("__paqtebi_view__")}&article_id=eq.${encodeURIComponent(articleId)}`
+          );
+          if (count > 0) counts[articleId] = count;
+        } catch {
+          // best-effort: skip this article's count on error
+        }
+      })
+    );
+    return counts;
+  }
+
+  // No specific IDs — return counts for ALL articles.
+  // Use a small paged scan but limit to a reasonable max to cap egress.
+  const requestedIdSet = new Set(requestedIds);
   let allData = [];
   const limit = 1000;
   const maxPages = 50;
@@ -234,7 +259,7 @@ async function getArticleViewCounts(articleIds = []) {
 
   return allData.reduce((counts, row) => {
     const articleId = decodeViewArticleId(row);
-    if (!articleId || (requestedIds.size > 0 && !requestedIds.has(articleId))) {
+    if (!articleId || (requestedIdSet.size > 0 && !requestedIdSet.has(articleId))) {
       return counts;
     }
 
@@ -299,12 +324,15 @@ export default async function handler(request, response) {
       );
 
       if (existingViews?.length) {
-        const viewCounts = await getArticleViewCounts([articleId]);
+        // Duplicate view — return current count using cheap SQL COUNT (no row scan)
+        const count = await getExactCount(
+          `comments?author=eq.${encodeURIComponent(VIEW_EVENT_AUTHOR)}&article_id=eq.${encodeURIComponent(articleId)}`
+        );
         json(response, 200, {
           success: true,
           counted: false,
           articleId,
-          viewCount: viewCounts[articleId] || 0,
+          viewCount: count,
         });
         return;
       }
@@ -334,14 +362,17 @@ export default async function handler(request, response) {
         }));
       }
 
-      const viewCounts = await getArticleViewCounts([articleId]);
+      // Use cheap SQL COUNT for the updated view count — no row scan needed
+      const viewCount = await getExactCount(
+        `comments?author=eq.${encodeURIComponent(VIEW_EVENT_AUTHOR)}&article_id=eq.${encodeURIComponent(articleId)}`
+      );
 
       json(response, 200, {
         success: true,
         counted: true,
         id: data?.[0]?.id || null,
         articleId,
-        viewCount: viewCounts[articleId] || 0,
+        viewCount,
       });
       return;
     }
