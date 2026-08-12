@@ -213,14 +213,27 @@ async function getArticleViewCounts(articleIds = []) {
   if (requestedIds.length > 0) {
     const counts = {};
     // Fetch counts for each article individually using count=exact header.
-    // For small batches (≤20 ids) this is far cheaper than scanning all rows.
+    // Two queries per article:
+    //   1. Rows where article_id column is set (primary path — all rows after backfill migration).
+    //   2. Rows where article_id is NULL but the ID is encoded in text (legacy fallback rows).
+    // After the one-time backfill migration the second count is always 0 and adds no real
+    // overhead. Before the migration it ensures old view rows are not silently ignored.
     await Promise.all(
       requestedIds.map(async (articleId) => {
         try {
-          const count = await getExactCount(
+          const countByColumn = await getExactCount(
             `comments?author=eq.${encodeURIComponent("__paqtebi_view__")}&article_id=eq.${encodeURIComponent(articleId)}`
           );
-          if (count > 0) counts[articleId] = count;
+
+          // Compute the base64url token the way encodeViewText() does, so we can match
+          // legacy rows that store the article ID only inside the text field.
+          const b64ArticleId = Buffer.from(String(articleId), "utf8").toString("base64url");
+          const countByText = await getExactCount(
+            `comments?author=eq.${encodeURIComponent("__paqtebi_view__")}&article_id=is.null&text=like.${encodeURIComponent(`%[[paqtebi-view:${b64ArticleId}%`)}`
+          );
+
+          const total = countByColumn + countByText;
+          if (total > 0) counts[articleId] = total;
         } catch {
           // best-effort: skip this article's count on error
         }
@@ -337,30 +350,18 @@ export default async function handler(request, response) {
         return;
       }
 
+      // "articleId" is the real camelCase column that stores the article reference.
+      // "article_id" is GENERATED ALWAYS AS ("articleId") and cannot be set directly.
       let data;
-      try {
-        ({ data } = await supabaseRequest("comments?select=id,article_id,text", {
-          method: "POST",
-          headers: { Prefer: "return=representation, override=system_value" },
-          body: JSON.stringify({
-            article_id: articleId,
-            author: VIEW_EVENT_AUTHOR,
-            text: viewText,
-          }),
-        }));
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "";
-        if (!message.includes("article_id")) throw error;
-
-        ({ data } = await supabaseRequest("comments?select=id,article_id,text", {
-          method: "POST",
-          headers: { Prefer: "return=representation" },
-          body: JSON.stringify({
-            author: VIEW_EVENT_AUTHOR,
-            text: viewText,
-          }),
-        }));
-      }
+      ({ data } = await supabaseRequest("comments?select=id,article_id,text", {
+        method: "POST",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify({
+          articleId: articleId,
+          author: VIEW_EVENT_AUTHOR,
+          text: viewText,
+        }),
+      }));
 
       // Use cheap SQL COUNT for the updated view count — no row scan needed
       const viewCount = await getExactCount(
