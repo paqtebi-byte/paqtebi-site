@@ -31,24 +31,61 @@ export const summarizeArticle = async (text: string): Promise<string | null> => 
 };
 
 /**
- * Translates a Georgian article title to an English URL slug via the server-side
- * Gemini API function. Returns null if the translation fails for any reason.
- * The caller should fall back to Georgian transliteration on null.
+ * Converts a raw Gemini response into a safe, lowercase, hyphenated URL slug.
+ */
+function sanitiseSlug(raw: string): string | null {
+  const slug = raw
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+  return slug || null;
+}
+
+/**
+ * Translates a Georgian article title to an English URL slug using Gemini
+ * directly from the browser (uses VITE_GEMINI_API_KEY which is already
+ * client-side). Returns null if translation fails — caller falls back to
+ * Georgian transliteration.
  */
 export const translateTitleToSlug = async (title: string): Promise<string | null> => {
   if (!title.trim()) return null;
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+  if (!apiKey) return null;
+
   try {
-    const response = await fetchWithTimeout("/api/translate-slug", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title: title.trim() }),
-    }, 12_000);
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-goog-api-key": apiKey,
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `Translate this Georgian news headline to English and return ONLY a URL slug.\nRules: lowercase, words separated by hyphens, no special characters, max 70 chars.\nReturn the slug and nothing else — no explanation, no quotes.\n\nHeadline: ${title.trim()}`,
+            }],
+          }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 60 },
+        }),
+      }
+    );
 
     if (!response.ok) return null;
     const data = await response.json();
-    return typeof data?.slug === "string" && data.slug ? data.slug : null;
+    const raw: string = (data?.candidates?.[0]?.content?.parts ?? [])
+      .map((p: { text?: string }) => p?.text ?? "")
+      .join("")
+      .trim();
+    return sanitiseSlug(raw);
   } catch {
     return null;
   }
 };
+
 
