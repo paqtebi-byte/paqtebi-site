@@ -86,14 +86,16 @@ const toArticleSlug = (title: string): string =>
 
 const getContentRoute = (article: Article) => {
   const slug = article.title ? toArticleSlug(article.title) : "";
-  const s = slug ? `/${slug}` : "";
-  if (article.contentType === "live") return `/live/${article.id}${s}`;
+  // Slug comes first (human-readable), UUID comes last (needed for lookup).
+  // Browsers display the Georgian slug natively; the UUID is still in the URL
+  // so existing links continue to work without any database changes.
+  if (article.contentType === "live") return `/live/${slug ? `${slug}/` : ""}${article.id}`;
   if (article.contentType === "video") {
-    if (article.category === "პოდკასტები") return `/podcasts/${article.id}${s}`;
-    if (article.category === "საინტერესო") return `/interesting/${article.id}${s}`;
-    return `/video-reports/${article.id}${s}`;
+    if (article.category === "პოდკასტები") return `/podcasts/${slug ? `${slug}/` : ""}${article.id}`;
+    if (article.category === "საინტერესო") return `/interesting/${slug ? `${slug}/` : ""}${article.id}`;
+    return `/video-reports/${slug ? `${slug}/` : ""}${article.id}`;
   }
-  return `/article/${article.id}${s}`;
+  return `/article/${slug ? `${slug}/` : ""}${article.id}`;
 };
 
 const preloadContentRoute = (article: Article) => {
@@ -915,8 +917,13 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
 /* ─────────────────────────────────────────────────────────────────
    ARTICLE DETAIL PAGE
 ───────────────────────────────────────────────────────────────── */
+const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
 const ArticleDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  // The URL can be /article/{uuid} (legacy) or /article/{slug}/{uuid} (new).
+  // Extract the UUID from wherever it appears in the path — no format assumption needed.
+  const { '*': splat } = useParams<{ '*': string }>();
+  const id = splat?.match(UUID_RE)?.[0] ?? splat ?? "";
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser, isAdminAuthenticated, currentAdmin, setCurrentUser } = useAuthContext();
@@ -1097,7 +1104,7 @@ const AppContent: React.FC = () => (
     <Route path="/" element={<MainSite viewMode="home" />} />
     <Route path="/saved" element={<MainSite viewMode="saved" />} />
     <Route path="/article/:id" element={<ArticleDetailPage />} />
-    <Route path="/article/:id/:slug" element={<ArticleDetailPage />} />
+    <Route path="/article/*" element={<ArticleDetailPage />} />
     <Route path="/live" element={<LiveRoutePage />} />
     <Route path="/live/:id" element={<LiveRoutePage />} />
     <Route path="/video" element={<VideoReportsRoutePage />} /> {/* Legacy fallback */}
