@@ -69,7 +69,7 @@ export default async function handler(request, response) {
     return json(response, 405, { error: "Method not allowed" });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
     return json(response, 503, { error: "AI summary service is not configured" });
   }
