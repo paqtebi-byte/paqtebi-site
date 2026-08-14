@@ -90,7 +90,22 @@ export default async function handler(request, response) {
     if (!geminiResponse.ok) {
       const err = await geminiResponse.json().catch(() => ({}));
       console.error(`[translate-slug] Gemini ${geminiResponse.status}:`, err?.error?.message);
-      return json(response, 502, { error: "Translation request failed", details: err?.error?.message });
+      
+      // Attempt to fetch available models to debug
+      let availableModels = [];
+      try {
+        const modelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        if (modelsRes.ok) {
+          const modelsData = await modelsRes.json();
+          availableModels = modelsData.models?.map(m => m.name) || [];
+        }
+      } catch (e) {}
+
+      return json(response, 502, { 
+        error: "Translation request failed", 
+        details: err?.error?.message,
+        availableModels
+      });
     }
 
     const data = await geminiResponse.json();
