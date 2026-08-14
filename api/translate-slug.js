@@ -90,7 +90,7 @@ export default async function handler(request, response) {
     if (!geminiResponse.ok) {
       const err = await geminiResponse.json().catch(() => ({}));
       console.error(`[translate-slug] Gemini ${geminiResponse.status}:`, err?.error?.message);
-      return json(response, 502, { error: "Translation request failed" });
+      return json(response, 502, { error: "Translation request failed", details: err?.error?.message });
     }
 
     const data = await geminiResponse.json();
