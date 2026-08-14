@@ -387,7 +387,7 @@ class RemoteApiService {
       let mainQuery = this.supabase!
         .from(DATABASE_CONFIG.TABLES.ARTICLES)
         .select(
-          "id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived",
+          "id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived, slug",
           { count: "exact" }
         )
         .eq("is_archived", false)
@@ -417,7 +417,7 @@ class RemoteApiService {
         sidebarQuery = this.supabase!
           .from(DATABASE_CONFIG.TABLES.ARTICLES)
           .select(
-            "id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived"
+            "id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived, slug"
           )
           .eq("is_archived", false)
           .in("category", ["ვიდეო რეპორტაჟები", "პოდკასტები", "საინტერესო"])
@@ -427,7 +427,7 @@ class RemoteApiService {
         customSidebarQuery = this.supabase!
           .from(DATABASE_CONFIG.TABLES.ARTICLES)
           .select(
-            "id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived"
+            "id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived, slug"
           )
           .eq("is_archived", false)
           .eq("layout", "sidebar")
@@ -503,7 +503,7 @@ class RemoteApiService {
     }
 
     try {
-      const selectFields = "id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived";
+      const selectFields = "id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived, slug";
 
       // First: try to find an article explicitly marked as hero
       const { data: heroData, error: heroError } = await this.supabase!
@@ -568,7 +568,7 @@ class RemoteApiService {
 
       const { data: articles, error } = await this.supabase!
         .from(DATABASE_CONFIG.TABLES.ARTICLES)
-        .select("id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived")
+        .select("id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived, slug")
         .in('id', sortedIds)
         .eq("is_archived", false);
 
@@ -599,7 +599,7 @@ class RemoteApiService {
       const { data, error } = await this.supabase!
         .from(DATABASE_CONFIG.TABLES.ARTICLES)
         .select(
-          "id, title, summary, content, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived"
+          "id, title, summary, content, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived, slug"
         )
         .eq("id", id)
         .eq("is_archived", false)
