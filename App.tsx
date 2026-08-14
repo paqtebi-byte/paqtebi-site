@@ -922,10 +922,12 @@ const MainSite: React.FC<{ viewMode?: "home" | "saved" }> = ({ viewMode = "home"
 const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
 const ArticleDetailPage: React.FC = () => {
-  // The URL can be /article/{uuid} (legacy) or /article/{slug}/{uuid} (new).
-  // Extract the UUID from wherever it appears in the path — no format assumption needed.
-  const { '*': splat } = useParams<{ '*': string }>();
-  const id = splat?.match(UUID_RE)?.[0] ?? splat ?? "";
+  // Handle both URL formats:
+  //   /article/{uuid}           → matched by Route path="/article/:id", gives params.id
+  //   /article/{slug}/{uuid}    → matched by Route path="/article/*", gives params['*']
+  const params = useParams<{ id?: string; '*'?: string }>();
+  const splat = params['*'];
+  const id = (splat ? UUID_RE.exec(splat)?.[0] : null) ?? params.id ?? "";
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser, isAdminAuthenticated, currentAdmin, setCurrentUser } = useAuthContext();
