@@ -85,7 +85,8 @@ const toArticleSlug = (title: string): string =>
     .slice(0, 80);
 
 const getContentRoute = (article: Article) => {
-  const slug = article.title ? toArticleSlug(article.title) : "";
+  // Prefer the stored English slug; fall back to Georgian transliteration.
+  const slug = article.slug || (article.title ? toArticleSlug(article.title) : "");
   // Slug comes first (human-readable), UUID comes last (needed for lookup).
   // Browsers display the Georgian slug natively; the UUID is still in the URL
   // so existing links continue to work without any database changes.
@@ -97,6 +98,7 @@ const getContentRoute = (article: Article) => {
   }
   return `/article/${slug ? `${slug}/` : ""}${article.id}`;
 };
+
 
 const preloadContentRoute = (article: Article) => {
   if (article.contentType === "live") {

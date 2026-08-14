@@ -29,3 +29,26 @@ export const summarizeArticle = async (text: string): Promise<string | null> => 
     return null;
   }
 };
+
+/**
+ * Translates a Georgian article title to an English URL slug via the server-side
+ * Gemini API function. Returns null if the translation fails for any reason.
+ * The caller should fall back to Georgian transliteration on null.
+ */
+export const translateTitleToSlug = async (title: string): Promise<string | null> => {
+  if (!title.trim()) return null;
+  try {
+    const response = await fetchWithTimeout("/api/translate-slug", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: title.trim() }),
+    }, 12_000);
+
+    if (!response.ok) return null;
+    const data = await response.json();
+    return typeof data?.slug === "string" && data.slug ? data.slug : null;
+  } catch {
+    return null;
+  }
+};
+

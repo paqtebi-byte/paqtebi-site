@@ -39,6 +39,7 @@ class RemoteApiService {
       liveStatus: row.liveStatus ?? row.live_status ?? undefined,
       scheduledAt: row.scheduledAt ?? row.scheduled_at ?? undefined,
       viewCount: Number(row.viewCount ?? row.view_count ?? 0),
+      slug: row.slug ?? null,
     } as Article;
   }
 
@@ -73,7 +74,8 @@ class RemoteApiService {
       viewCount: _viewCount,
       view_count: _view_count,
       _isSupplementary,
-      // rest: title, summary, content, author, category, category_slug, date, layout — stay as-is
+      // slug stays in ...rest — it's stored as-is in the slug column
+      // rest: title, summary, content, author, category, category_slug, date, layout, slug — stay as-is
       ...rest
     } = article as any;
 
@@ -642,17 +644,24 @@ class RemoteApiService {
 
     // Use Supabase — `id` is deleted in mapArticleToDb, so Supabase auto-generates a UUID
     try {
+      // Auto-generate English slug via Gemini (best-effort; falls back to null).
+      let slug: string | null = article.slug ?? null;
+      if (!slug && article.title) {
+        const { translateTitleToSlug } = await import("./geminiService");
+        slug = await translateTitleToSlug(article.title);
+      }
+
       const payload = {
-        ...this.mapArticleToDb(article as Partial<Article>),
-        created_at: article.layout === 'hero' 
-          ? new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000).toISOString() 
+        ...this.mapArticleToDb({ ...article, slug } as Partial<Article>),
+        created_at: article.layout === 'hero'
+          ? new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000).toISOString()
           : new Date().toISOString(),
       };
 
       const { data, error } = await this.supabase!
         .from(DATABASE_CONFIG.TABLES.ARTICLES)
         .insert([payload])
-        .select("id, title, summary, content, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived")
+        .select("id, title, summary, content, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived, slug")
         .single();
 
       if (error) {
@@ -694,7 +703,14 @@ class RemoteApiService {
 
     // Use Supabase — `id` is deleted in mapArticleToDb, passed only in .eq()
     try {
-      const updatePayload = this.mapArticleToDb(article);
+      // Re-generate English slug if the title changed or slug is missing.
+      let slug: string | null = article.slug ?? null;
+      if (article.title && !slug) {
+        const { translateTitleToSlug } = await import("./geminiService");
+        slug = await translateTitleToSlug(article.title);
+      }
+
+      const updatePayload = this.mapArticleToDb({ ...article, ...(slug ? { slug } : {}) });
       if (article.layout === 'hero') {
         updatePayload.created_at = new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000).toISOString();
       }
@@ -703,7 +719,7 @@ class RemoteApiService {
         .from(DATABASE_CONFIG.TABLES.ARTICLES)
         .update(updatePayload)
         .eq("id", id)
-        .select("id, title, summary, content, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived")
+        .select("id, title, summary, content, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived, slug")
         .single();
 
       if (error) {
