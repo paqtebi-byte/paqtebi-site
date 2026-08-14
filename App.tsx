@@ -73,14 +73,27 @@ const ResetPassword = React.lazy(() =>
   import("./components/ResetPassword").then((m) => ({ default: m.ResetPassword }))
 );
 
+/** Turns an article title into a URL-safe slug that browsers display in Georgian. */
+const toArticleSlug = (title: string): string =>
+  title
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^\u10D0-\u10FF\u10A0-\u10CFa-z0-9-]/g, "")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+
 const getContentRoute = (article: Article) => {
-  if (article.contentType === "live") return `/live/${article.id}`;
+  const slug = article.title ? toArticleSlug(article.title) : "";
+  const s = slug ? `/${slug}` : "";
+  if (article.contentType === "live") return `/live/${article.id}${s}`;
   if (article.contentType === "video") {
-    if (article.category === "პოდკასტები") return `/podcasts/${article.id}`;
-    if (article.category === "საინტერესო") return `/interesting/${article.id}`;
-    return `/video-reports/${article.id}`;
+    if (article.category === "პოდკასტები") return `/podcasts/${article.id}${s}`;
+    if (article.category === "საინტერესო") return `/interesting/${article.id}${s}`;
+    return `/video-reports/${article.id}${s}`;
   }
-  return `/article/${article.id}`;
+  return `/article/${article.id}${s}`;
 };
 
 const preloadContentRoute = (article: Article) => {
@@ -930,12 +943,22 @@ const ArticleDetailPage: React.FC = () => {
     return () => { cancelled = true; };
   }, [id, articleRevision]);
 
+
   // While fetchArticleById is in-flight, show the partial article from state/cache
   // so the page title and thumbnail render immediately (no blank flash).
   const partialArticle = stateArticle ?? articles.find((a) => a.id === id);
 
   // Use the full article once loaded; fall back to partial while loading.
   const article = fullArticle ?? partialArticle;
+
+  // Update the browser-tab title to the article title while this page is open.
+  // Runs as soon as either the partial or full article is available.
+  useEffect(() => {
+    if (!article?.title) return;
+    const prev = document.title;
+    document.title = `${article.title} — Paqtebi`;
+    return () => { document.title = prev; };
+  }, [article?.title]);
 
   const isFetching = fullArticle === undefined;
 
@@ -1074,6 +1097,7 @@ const AppContent: React.FC = () => (
     <Route path="/" element={<MainSite viewMode="home" />} />
     <Route path="/saved" element={<MainSite viewMode="saved" />} />
     <Route path="/article/:id" element={<ArticleDetailPage />} />
+    <Route path="/article/:id/:slug" element={<ArticleDetailPage />} />
     <Route path="/live" element={<LiveRoutePage />} />
     <Route path="/live/:id" element={<LiveRoutePage />} />
     <Route path="/video" element={<VideoReportsRoutePage />} /> {/* Legacy fallback */}
