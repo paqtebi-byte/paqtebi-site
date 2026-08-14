@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const MODEL = process.env.GEMINI_MODEL || "gemini-1.5-flash";
 const REQUEST_TIMEOUT_MS = 10_000;
 // Cache: title hash → English slug, TTL 7 days (slugs don't change)
 const slugCache = new Map();
