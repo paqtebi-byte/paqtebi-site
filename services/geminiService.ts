@@ -32,17 +32,17 @@ export const summarizeArticle = async (text: string): Promise<string | null> => 
 
 /**
  * Translates a Georgian article title to an English URL slug via the
- * server-side /api/translate-slug function (which has access to GEMINI_API_KEY
- * through Vercel Environment Variables). Returns null on failure — caller
- * falls back to Georgian transliteration.
+ * server-side /api/translate-slug function. Also accepts an optional articleId
+ * so the generated slug gets persisted to the DB for future visits.
+ * Returns null on failure — caller falls back to UUID-only URL.
  */
-export const translateTitleToSlug = async (title: string): Promise<string | null> => {
+export const translateTitleToSlug = async (title: string, articleId?: string): Promise<string | null> => {
   if (!title.trim()) return null;
   try {
     const response = await fetchWithTimeout("/api/translate-slug", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title: title.trim() }),
+      body: JSON.stringify({ title: title.trim(), ...(articleId ? { articleId } : {}) }),
     }, 12_000);
 
     if (!response.ok) return null;
@@ -52,6 +52,7 @@ export const translateTitleToSlug = async (title: string): Promise<string | null
     return null;
   }
 };
+
 
 
 

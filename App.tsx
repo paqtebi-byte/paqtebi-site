@@ -971,7 +971,25 @@ const ArticleDetailPage: React.FC = () => {
     return () => { document.title = prev; };
   }, [article?.title]);
 
+  // Auto-translate: if this article has no English slug yet, call the API,
+  // save to DB (server-side), and update the URL silently (no page reload).
+  useEffect(() => {
+    if (!article?.id || !article?.title || article?.slug) return; // already has slug
+    let cancelled = false;
+    import("./services/geminiService").then(({ translateTitleToSlug }) => {
+      translateTitleToSlug(article.title, article.id).then((slug) => {
+        if (cancelled || !slug) return;
+        // Update URL silently so the user sees the English slug immediately
+        navigate(`/article/${slug}/${article.id}`, { replace: true });
+      });
+    });
+    return () => { cancelled = true; };
+  // Only run once when the full article with no slug first loads
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [article?.id, article?.slug]);
+
   const isFetching = fullArticle === undefined;
+
 
   if (isFetching && !article) return <LoadingSkeleton />;
   if (!article) return <NotFound />;

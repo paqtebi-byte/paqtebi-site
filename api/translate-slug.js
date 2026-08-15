@@ -28,11 +28,32 @@ function sanitiseSlug(raw) {
   return String(raw || "")
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9\s-]/g, "")   // keep ASCII letters, digits, spaces, hyphens
+    .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-{2,}/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 80);
+}
+
+/** Persist the generated slug to the articles table (best-effort). */
+async function persistSlug(articleId, slug) {
+  try {
+    const supabaseUrl = process.env.VITE_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !serviceKey || !articleId) return;
+    await fetch(`${supabaseUrl}/rest/v1/articles?id=eq.${encodeURIComponent(articleId)}`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        "apikey": serviceKey,
+        "Authorization": `Bearer ${serviceKey}`,
+        "Prefer": "return=minimal",
+      },
+      body: JSON.stringify({ slug }),
+    });
+  } catch {
+    // best-effort, ignore errors
+  }
 }
 
 export default async function handler(request, response) {
@@ -48,14 +69,16 @@ export default async function handler(request, response) {
   try {
     const body = await readBody(request);
     const title = typeof body.title === "string" ? body.title.trim() : "";
+    const articleId = typeof body.articleId === "string" ? body.articleId.trim() : "";
 
     if (!title) return json(response, 400, { error: "title is required" });
     if (title.length > 500) return json(response, 413, { error: "title too long" });
 
-    // Cache hit
+    // Cache hit — if articleId provided and we have a cached slug, still persist it
     const cacheKey = crypto.createHash("sha256").update(title).digest("hex");
     const cached = slugCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
+      if (articleId) persistSlug(articleId, cached.slug);
       return json(response, 200, { slug: cached.slug, cached: true });
     }
 
@@ -90,22 +113,7 @@ export default async function handler(request, response) {
     if (!geminiResponse.ok) {
       const err = await geminiResponse.json().catch(() => ({}));
       console.error(`[translate-slug] Gemini ${geminiResponse.status}:`, err?.error?.message);
-      
-      // Attempt to fetch available models to debug
-      let availableModels = [];
-      try {
-        const modelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-        if (modelsRes.ok) {
-          const modelsData = await modelsRes.json();
-          availableModels = modelsData.models?.map(m => m.name) || [];
-        }
-      } catch (e) {}
-
-      return json(response, 502, { 
-        error: "Translation request failed", 
-        details: err?.error?.message,
-        availableModels
-      });
+      return json(response, 502, { error: "Translation request failed", details: err?.error?.message });
     }
 
     const data = await geminiResponse.json();
@@ -115,6 +123,10 @@ export default async function handler(request, response) {
     if (!slug) return json(response, 502, { error: "Gemini returned empty slug" });
 
     slugCache.set(cacheKey, { slug, expiresAt: Date.now() + CACHE_TTL_MS });
+
+    // Persist to DB so future visits use the slug directly without API call
+    if (articleId) persistSlug(articleId, slug);
+
     return json(response, 200, { slug, cached: false });
   } catch (error) {
     const isTimeout = error instanceof Error && error.name === "AbortError";
