@@ -27,15 +27,15 @@
   ],
   "rewrites": [
     {
-      "source": "/article/:slug/:id",
+      "source": "/article/:first/:second",
       "has": [
         {
           "type": "header",
           "key": "user-agent",
-          "value": ".*(facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|TelegramBot|WhatsApp|Discordbot|DiscordBot).*"
+          "value": ".*(Googlebot|bingbot|facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|TelegramBot|WhatsApp|Discordbot|DiscordBot).*"
         }
       ],
-      "destination": "/api/article-meta?id=:id"
+      "destination": "/api/article-meta?first=:first&second=:second"
     },
     {
       "source": "/article/:id",
@@ -43,7 +43,7 @@
         {
           "type": "header",
           "key": "user-agent",
-          "value": ".*(facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|TelegramBot|WhatsApp|Discordbot|DiscordBot).*"
+          "value": ".*(Googlebot|bingbot|facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|TelegramBot|WhatsApp|Discordbot|DiscordBot).*"
         }
       ],
       "destination": "/api/article-meta?id=:id"

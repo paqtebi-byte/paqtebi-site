@@ -33,15 +33,19 @@ async function fetchArticle(id) {
 
   if (!supabaseUrl || !supabaseAnonKey || !id) return null;
 
-  const response = await fetchWithTimeout(
-    `${supabaseUrl}/rest/v1/articles?id=eq.${encodeURIComponent(id)}&select=id,title,summary,imageUrl,image_url`,
-    {
-      headers: {
-        apikey: supabaseAnonKey,
-        authorization: `Bearer ${supabaseAnonKey}`,
-      },
+  const isShortId = /^[0-9a-f]{8}$/i.test(id);
+  const url = isShortId
+    ? `${supabaseUrl}/rest/v1/rpc/get_article_by_short_id`
+    : `${supabaseUrl}/rest/v1/articles?id=eq.${encodeURIComponent(id)}&select=id,title,summary,imageUrl,image_url,slug`;
+  const response = await fetchWithTimeout(url, {
+    method: isShortId ? "POST" : "GET",
+    headers: {
+      "content-type": "application/json",
+      apikey: supabaseAnonKey,
+      authorization: `Bearer ${supabaseAnonKey}`,
     },
-  );
+    ...(isShortId ? { body: JSON.stringify({ p_short_id: id.toLowerCase() }) } : {}),
+  });
 
   if (!response.ok) return null;
   const articles = await response.json();
@@ -49,9 +53,16 @@ async function fetchArticle(id) {
 }
 
 export default async function handler(request, response) {
-  const id = request.query?.id;
+  const first = request.query?.first;
+  const second = request.query?.second;
+  const legacyUuid = [first, second].find((value) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value || "")
+  );
+  const id = request.query?.id || legacyUuid || first;
   const article = await fetchArticle(id);
-  const articleUrl = `${SITE_URL}/article/${encodeURIComponent(id || "")}`;
+  const articleUrl = article
+    ? `${SITE_URL}/article/${article.id.slice(0, 8)}${article.slug ? `/${encodeURIComponent(article.slug)}` : ""}`
+    : `${SITE_URL}/article/${encodeURIComponent(id || "")}`;
 
   if (!article) {
     response.statusCode = 404;

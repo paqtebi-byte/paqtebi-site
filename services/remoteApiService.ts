@@ -592,20 +592,29 @@ class RemoteApiService {
     if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
       const fetchResult = await this.fetchArticles();
       const articles = fetchResult.data;
-      return articles.find((a) => a.id === id) ?? null;
+      const normalizedId = id.toLowerCase();
+      return articles.find((a) =>
+        a.id === id || (normalizedId.length === 8 && a.id.toLowerCase().startsWith(normalizedId))
+      ) ?? null;
     }
 
     try {
-      const { data, error } = await this.supabase!
-        .from(DATABASE_CONFIG.TABLES.ARTICLES)
-        .select(
-          "id, title, summary, content, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived, slug"
-        )
-        .eq("id", id)
-        .eq("is_archived", false)
-        .maybeSingle();
+      const isShortId = /^[0-9a-f]{8}$/i.test(id);
+      const query = isShortId
+        ? this.supabase!.rpc("get_article_by_short_id", { p_short_id: id.toLowerCase() })
+        : this.supabase!
+            .from(DATABASE_CONFIG.TABLES.ARTICLES)
+            .select(
+              "id, title, summary, content, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived, slug"
+            )
+            .eq("id", id)
+            .eq("is_archived", false)
+            .maybeSingle();
+
+      const { data: rawData, error } = await query;
 
       if (error) throw new Error(`Error fetching article: ${error.message}`);
+      const data = Array.isArray(rawData) ? rawData[0] : rawData;
       if (!data) return null;
       const [article] = await this.attachArticleViewCounts([this.mapArticleFromDb(data)]);
       return article;

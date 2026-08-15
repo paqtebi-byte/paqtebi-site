@@ -95,7 +95,8 @@ const getContentRoute = (article: Article) => {
     if (article.category === "საინტერესო") return `/interesting/${slug ? `${slug}/` : ""}${article.id}`;
     return `/video-reports/${slug ? `${slug}/` : ""}${article.id}`;
   }
-  return `/article/${slug ? `${slug}/` : ""}${article.id}`;
+  const shortId = article.id.slice(0, 8);
+  return `/article/${shortId}${slug ? `/${slug}` : ""}`;
 };
 
 
@@ -923,11 +924,14 @@ const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
 const ArticleDetailPage: React.FC = () => {
   // Handle both URL formats:
-  //   /article/{uuid}           → matched by Route path="/article/:id", gives params.id
-  //   /article/{slug}/{uuid}    → matched by Route path="/article/*", gives params['*']
+  //   /article/{uuid}             → legacy full-ID URL
+  //   /article/{slug}/{uuid}      → legacy slug-first URL
+  //   /article/{shortId}/{slug}   → canonical URL
   const params = useParams<{ id?: string; '*'?: string }>();
   const splat = params['*'];
-  const id = (splat ? UUID_RE.exec(splat)?.[0] : null) ?? params.id ?? "";
+  const pathParts = (splat || params.id || "").split("/").filter(Boolean);
+  const fullUuid = UUID_RE.exec(pathParts.join("/"))?.[0];
+  const id = fullUuid ?? pathParts[0] ?? "";
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser, isAdminAuthenticated, currentAdmin, setCurrentUser } = useAuthContext();
@@ -971,6 +975,27 @@ const ArticleDetailPage: React.FC = () => {
     return () => { document.title = prev; };
   }, [article?.title]);
 
+  // Normalize legacy/direct links to the canonical short-ID-first URL once the
+  // article is known. This keeps one stable URL for analytics and search engines.
+  useEffect(() => {
+    if (!article?.id || !article?.slug) return;
+    const canonicalPath = `/article/${article.id.slice(0, 8)}/${article.slug}`;
+    let canonicalLink = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    const createdCanonicalLink = !canonicalLink;
+    if (!canonicalLink) {
+      canonicalLink = document.createElement("link");
+      canonicalLink.rel = "canonical";
+      document.head.appendChild(canonicalLink);
+    }
+    canonicalLink.href = `${window.location.origin}${canonicalPath}`;
+    if (location.pathname !== canonicalPath) {
+      navigate(canonicalPath, { replace: true, state: { article } });
+    }
+    return () => {
+      if (createdCanonicalLink) canonicalLink?.remove();
+    };
+  }, [article?.id, article?.slug, location.pathname, navigate]);
+
   // Auto-translate: if this article has no English slug yet, call the API,
   // save to DB (server-side), and update the URL silently (no page reload).
   useEffect(() => {
@@ -980,7 +1005,7 @@ const ArticleDetailPage: React.FC = () => {
       translateTitleToSlug(article.title, article.id).then((slug) => {
         if (cancelled || !slug) return;
         // Update URL silently so the user sees the English slug immediately
-        navigate(`/article/${slug}/${article.id}`, { replace: true });
+        navigate(`/article/${article.id.slice(0, 8)}/${slug}`, { replace: true });
       });
     });
     return () => { cancelled = true; };
