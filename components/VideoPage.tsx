@@ -20,8 +20,13 @@ interface VideoPageProps {
   isAdmin?: boolean;
 }
 
+const VIDEO_UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
 export const VideoPage: React.FC<VideoPageProps> = ({ category, title, currentUser, onLoginRequest, isAdmin }) => {
-  const { id } = useParams<{ id?: string }>();
+  // Handle both /type/{uuid} (old) and /type/{slug}/{uuid} (new) URL formats.
+  const params = useParams<{ id?: string; '*'?: string }>();
+  const splat = params['*'];
+  const id = (splat ? VIDEO_UUID_RE.exec(splat)?.[0] : null) ?? params.id;
   const navigate = useNavigate();
   const [videos, setVideos] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);

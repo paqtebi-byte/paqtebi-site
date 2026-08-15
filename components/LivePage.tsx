@@ -6,8 +6,13 @@ import apiService from "../services/apiService";
 import { LoadingSkeleton } from "./LoadingSkeleton";
 import { NotFound } from "./NotFound";
 
+const LIVE_UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
 export const LivePage: React.FC = () => {
-  const { id } = useParams<{ id?: string }>();
+  // Handle both /live/{uuid} (old) and /live/{slug}/{uuid} (new) URL formats.
+  const params = useParams<{ id?: string; '*'?: string }>();
+  const splat = params['*'];
+  const id = (splat ? LIVE_UUID_RE.exec(splat)?.[0] : null) ?? params.id;
   const navigate = useNavigate();
   const [streams, setStreams] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);

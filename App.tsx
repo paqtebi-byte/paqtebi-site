@@ -1111,14 +1111,19 @@ const AppContent: React.FC = () => (
     <Route path="/article/*" element={<ArticleDetailPage />} />
     <Route path="/live" element={<LiveRoutePage />} />
     <Route path="/live/:id" element={<LiveRoutePage />} />
+    <Route path="/live/*" element={<LiveRoutePage />} />
     <Route path="/video" element={<VideoReportsRoutePage />} /> {/* Legacy fallback */}
     <Route path="/video/:id" element={<VideoReportsRoutePage />} />
+    <Route path="/video/*" element={<VideoReportsRoutePage />} />
     <Route path="/video-reports" element={<VideoReportsRoutePage />} />
     <Route path="/video-reports/:id" element={<VideoReportsRoutePage />} />
+    <Route path="/video-reports/*" element={<VideoReportsRoutePage />} />
     <Route path="/podcasts" element={<PodcastsRoutePage />} />
     <Route path="/podcasts/:id" element={<PodcastsRoutePage />} />
+    <Route path="/podcasts/*" element={<PodcastsRoutePage />} />
     <Route path="/interesting" element={<InterestingRoutePage />} />
     <Route path="/interesting/:id" element={<InterestingRoutePage />} />
+    <Route path="/interesting/*" element={<InterestingRoutePage />} />
     <Route path="/admin/login" element={<AdminLoginPage />} />
     <Route path="/admin/forgot-password" element={<Suspense fallback={<LoadingSkeleton />}><ForgotPassword /></Suspense>} />
     <Route path="/admin/reset-password" element={<Suspense fallback={<LoadingSkeleton />}><ResetPassword /></Suspense>} />
