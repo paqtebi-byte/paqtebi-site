@@ -411,18 +411,24 @@ class RemoteApiService {
         mainQuery = mainQuery.neq("id", excludeId);
       }
 
-      let sidebarQuery: any = null;
+      let sidebarMediaQueries: any[] = [];
       let customSidebarQuery: any = null;
       if (contentType === "all") {
-        sidebarQuery = this.supabase!
-          .from(DATABASE_CONFIG.TABLES.ARTICLES)
-          .select(
-            "id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived, slug"
-          )
-          .eq("is_archived", false)
-          .in("category", ["ვიდეო რეპორტაჟები", "პოდკასტები", "საინტერესო"])
-          .order("created_at", { ascending: false })
-          .limit(6);
+        // Fetch one latest item per media category. A shared `.in(...).limit(6)`
+        // allowed busy categories to occupy every row and hide another section.
+        // Three one-row queries keep the payload smaller while guaranteeing that
+        // each sidebar section has its own candidate.
+        sidebarMediaQueries = ["ვიდეო რეპორტაჟები", "პოდკასტები", "საინტერესო"].map(
+          (sidebarCategory) => this.supabase!
+            .from(DATABASE_CONFIG.TABLES.ARTICLES)
+            .select(
+              "id, title, summary, author, category, category_slug, date, layout, imageUrl, content_type, video_url, video_provider, video_id, video_thumbnail_url, video_duration, is_live, live_status, scheduled_at, created_at, is_archived, slug"
+            )
+            .eq("is_archived", false)
+            .eq("category", sidebarCategory)
+            .order("created_at", { ascending: false })
+            .limit(1)
+        );
 
         customSidebarQuery = this.supabase!
           .from(DATABASE_CONFIG.TABLES.ARTICLES)
@@ -435,9 +441,9 @@ class RemoteApiService {
           .limit(6);
       }
 
-      const [mainResult, sidebarResult, customSidebarResult] = await Promise.all([
+      const [mainResult, sidebarMediaResults, customSidebarResult] = await Promise.all([
         mainQuery,
-        sidebarQuery ? sidebarQuery : Promise.resolve({ data: null, error: null }),
+        sidebarMediaQueries.length > 0 ? Promise.all(sidebarMediaQueries) : Promise.resolve([]),
         customSidebarQuery ? customSidebarQuery : Promise.resolve({ data: null, error: null })
       ]);
 
@@ -454,7 +460,8 @@ class RemoteApiService {
       if (excludeId) mainIdSet.add(excludeId); // also exclude hero from sidebar results
       
       // Sidebar articles: only add those that are NOT already in the main set
-      const sidebarRows = [...(sidebarResult.data || []), ...(customSidebarResult.data || [])]
+      const mediaSidebarRows = sidebarMediaResults.flatMap((result: any) => result.data || []);
+      const sidebarRows = [...mediaSidebarRows, ...(customSidebarResult.data || [])]
         .filter((row: any, index: number, rows: any[]) =>
           rows.findIndex((candidate: any) => candidate.id === row.id) === index
         );

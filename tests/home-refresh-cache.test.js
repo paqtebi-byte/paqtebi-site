@@ -36,6 +36,18 @@ test('view counts hydrate after visible home content and use separate service ca
   assert.match(remoteApiSource, /includeViewCounts[\s\S]*?attachArticleViewCounts/);
 });
 
+test('home sidebar fetches one latest item from every media category', () => {
+  assert.match(
+    remoteApiSource,
+    /\["ვიდეო რეპორტაჟები", "პოდკასტები", "საინტერესო"\]\.map\([\s\S]*?\.eq\("category", sidebarCategory\)[\s\S]*?\.limit\(1\)/,
+  );
+  assert.match(remoteApiSource, /Promise\.all\(sidebarMediaQueries\)/);
+  assert.doesNotMatch(
+    remoteApiSource,
+    /\.in\("category", \["ვიდეო რეპორტაჟები", "პოდკასტები", "საინტერესო"\]\)[\s\S]*?\.limit\(6\)/,
+  );
+});
+
 test('article mutations invalidate the refresh cache', () => {
   assert.match(hookSource, /invalidateArticleCache[\s\S]*?sessionStorage\.removeItem\(HOME_PAGE_CACHE_KEY\)/);
 });
