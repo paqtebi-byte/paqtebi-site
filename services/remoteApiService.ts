@@ -477,7 +477,10 @@ class RemoteApiService {
       };
     } catch (error) {
       console.error("Error in fetchArticles:", error);
-      return { data: [], count: 0 };
+      // Do not turn a failed Supabase request into a successful empty feed.
+      // Propagating the error lets the caller's bounded single-retry run and,
+      // importantly, prevents ApiService from caching the empty result.
+      throw error;
     }
   }
 

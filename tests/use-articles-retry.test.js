@@ -38,6 +38,14 @@ test("useArticles always clears loading after the retry sequence", () => {
   assert.match(source, /finally\s*{\s*setLoading\(false\);\s*}/);
 });
 
+test("failed Supabase article loads propagate instead of caching an empty feed", () => {
+  const source = readFileSync(resolve(ROOT, "services/remoteApiService.ts"), "utf8");
+  assert.match(
+    source,
+    /catch \(error\) {\s*console\.error\("Error in fetchArticles:", error\);[\s\S]*?throw error;\s*}/,
+  );
+});
+
 test("password reset uses only the active Supabase flow", () => {
   const source = readFileSync(resolve(ROOT, "services/authService.ts"), "utf8");
   assert.equal((source.match(/resetPasswordForEmail\(/g) || []).length, 1);
