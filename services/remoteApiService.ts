@@ -4,6 +4,7 @@ import { DATABASE_CONFIG } from "../config/database";
 import getSupabaseClient from "./supabaseClient";
 import { fetchWithTimeout } from "../utils/fetchWithTimeout";
 import { isRecord, readLocalStorageJson } from "../utils/safeStorage";
+import { createAnalyticsCache, MAX_ANALYTICS_ARTICLE_IDS } from "../utils/analyticsCache.js";
 
 /**
  * Service class for handling all API/database operations with Supabase
@@ -18,6 +19,13 @@ class RemoteApiService {
   private readonly AD_INQUIRIES_STORAGE_KEY = "paqtebi_ad_inquiries";
   private readonly VIEW_STORAGE_KEY = "paqtebi_article_views";
   private readonly VIEW_EVENT_AUTHOR = "__paqtebi_view__";
+  private viewCountsCache = createAnalyticsCache();
+  private popularArticlesCache = createAnalyticsCache();
+
+  invalidateAnalyticsCache() {
+    this.viewCountsCache.clear();
+    this.popularArticlesCache.clear();
+  }
 
   constructor() {
     if (!DATABASE_CONFIG.USE_LOCAL_STORAGE) {
@@ -236,11 +244,20 @@ class RemoteApiService {
     }
 
     try {
-      const response = await fetchWithTimeout(`/api/analytics?articleIds=${encodeURIComponent(articleIds.join(","))}`);
-      if (!response.ok) throw new Error(`Analytics API failed: ${response.status}`);
-
-      const data = await response.json();
-      return data.viewCounts || {};
+      const uniqueIds = [...new Set(articleIds)].sort();
+      const batches: string[][] = [];
+      for (let index = 0; index < uniqueIds.length; index += MAX_ANALYTICS_ARTICLE_IDS) {
+        batches.push(uniqueIds.slice(index, index + MAX_ANALYTICS_ARTICLE_IDS));
+      }
+      const counts = await Promise.all(batches.map((ids) => (
+        this.viewCountsCache.read(ids.join(","), async (): Promise<Record<string, number>> => {
+          const response = await fetchWithTimeout(`/api/analytics?articleIds=${encodeURIComponent(ids.join(","))}`);
+          if (!response.ok) throw new Error(`Analytics API failed: ${response.status}`);
+          const data = await response.json();
+          return data.viewCounts || {};
+        })
+      )));
+      return Object.assign({}, ...counts);
     } catch (error) {
       console.warn("Article view count fetch failed; using local fallback:", error);
       return this.getLocalArticleViewCounts(articleIds);
@@ -322,6 +339,7 @@ class RemoteApiService {
         this.recordLocalArticleView(articleId);
       }
       const viewCount = Number.isFinite(Number(data.viewCount)) ? Number(data.viewCount) : null;
+      this.invalidateAnalyticsCache();
       notifyViewTracked(viewCount ?? undefined);
       return viewCount;
     } catch (error) {
@@ -557,6 +575,15 @@ class RemoteApiService {
    * Fetch top N popular articles based on global view counts.
    */
   async fetchPopularArticles(limit: number = 5): Promise<Article[]> {
+    try {
+      return await this.popularArticlesCache.read(String(limit), () => this.loadPopularArticles(limit));
+    } catch (error) {
+      console.error("Error in fetchPopularArticles:", error);
+      return [];
+    }
+  }
+
+  private async loadPopularArticles(limit: number): Promise<Article[]> {
     if (DATABASE_CONFIG.USE_LOCAL_STORAGE) {
       const fetchResult = await this.fetchArticles("all", 1, 100);
       return fetchResult.data
@@ -589,8 +616,7 @@ class RemoteApiService {
         .map(a => ({ ...a, viewCount: viewCounts[a.id] }))
         .sort((a, b) => Number(b.viewCount) - Number(a.viewCount));
     } catch (error) {
-      console.error("Error in fetchPopularArticles:", error);
-      return [];
+      throw error;
     }
   }
 

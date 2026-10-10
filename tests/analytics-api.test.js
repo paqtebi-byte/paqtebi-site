@@ -1,9 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import handler from "../api/analytics.js";
+let handler;
+let handlerVersion = 0;
 
 const ORIGINAL_ENV = { ...process.env };
 const ORIGINAL_FETCH = globalThis.fetch;
+const ORIGINAL_NOW = Date.now;
 
 function createResponse() {
   return {
@@ -38,7 +40,8 @@ function jsonResponse(data, status = 200, headers = {}) {
   });
 }
 
-test.beforeEach(() => {
+test.beforeEach(async () => {
+  ({ default: handler } = await import(`../api/analytics.js?test=${++handlerVersion}`));
   process.env.VITE_SUPABASE_URL = "https://example.supabase.co";
   process.env.VITE_SUPABASE_ANON_KEY = "anon-key";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "service-key";
@@ -48,6 +51,7 @@ test.beforeEach(() => {
 test.afterEach(() => {
   process.env = { ...ORIGINAL_ENV };
   globalThis.fetch = ORIGINAL_FETCH;
+  Date.now = ORIGINAL_NOW;
 });
 
 test("POST rejects malformed article identifiers without touching Supabase", async () => {
@@ -89,10 +93,8 @@ test("POST counts the first valid view and issues a signed visitor cookie", asyn
     if (options.method === "POST") {
       return jsonResponse([{ id: "view-1", article_id: "article-1" }]);
     }
-    if (String(url).includes("select=id,article_id,text")) {
-      return jsonResponse([
-        { id: "view-1", article_id: "article-1", text: "[[paqtebi-view:YXJ0aWNsZS0x]]" },
-      ]);
+    if (String(url).includes("article_id=eq.article-1")) {
+      return jsonResponse([], 206, { "content-range": "0-0/1" });
     }
     throw new Error(`Unexpected request: ${url}`);
   };
@@ -118,10 +120,8 @@ test("POST returns the current count without inserting a duplicate visitor view"
       return jsonResponse([{ id: "existing-view" }]);
     }
     if (options.method === "POST") inserted = true;
-    if (String(url).includes("select=id,article_id,text")) {
-      return jsonResponse([
-        { id: "existing-view", article_id: "article-2", text: "[[paqtebi-view:YXJ0aWNsZS0y]]" },
-      ]);
+    if (String(url).includes("article_id=eq.article-2")) {
+      return jsonResponse([], 206, { "content-range": "0-0/1" });
     }
     throw new Error(`Unexpected request: ${url}`);
   };
@@ -156,4 +156,110 @@ test("POST rate-limits excessive requests from the same IP", async () => {
 
   assert.equal(response.statusCode, 429);
   assert.equal(response.headers["retry-after"], "60");
+});
+
+async function get(url) {
+  const response = createResponse();
+  await handler({ method: "GET", url, headers: {} }, response);
+  return response;
+}
+
+test("GET rejects malformed, empty and oversized batches before calling Supabase", async () => {
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; throw new Error("Unexpected Supabase request"); };
+  for (const query of [
+    "articleIds=", "articleIds=,", "articleIds=invalid%2Fid", "scope=unknown",
+    "articleIds=a&articleIds=b", `articleIds=${"a".repeat(129)}`,
+    `articleIds=${Array.from({ length: 101 }, (_, i) => `article-${i}`).join(",")}`,
+    `articleIds=${"a,".repeat(6500)}`,
+  ]) {
+    assert.equal((await get(`/api/analytics?${query}`)).statusCode, 400, query.slice(0, 100));
+  }
+  assert.equal(calls, 0);
+});
+
+test("21 article counts use 21 primary queries; duplicate, reordered and concurrent reads reuse them", async () => {
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    calls.push(String(url));
+    assert.doesNotMatch(String(url), /article_id=is.null|text=like/);
+    return jsonResponse([], 206, { "content-range": "0-0/17" });
+  };
+  const ids = Array.from({ length: 21 }, (_, i) => `article-${i}`);
+  const [first, second] = await Promise.all([
+    get(`/api/analytics?articleIds=${ids.join(",")},article-0`),
+    get(`/api/analytics?articleIds=${ids.toReversed().join(",")}`),
+  ]);
+  assert.equal(first.statusCode, 200);
+  assert.deepEqual(JSON.parse(first.body), JSON.parse(second.body));
+  assert.equal(JSON.parse(first.body).viewCounts["article-0"], 17);
+  assert.equal(calls.length, 21);
+  await get(`/api/analytics?articleIds=${ids.join(",")}`);
+  assert.equal(calls.length, 21);
+});
+
+test("GET accepts the 100-ID boundary and preserves zero and historical counts", async () => {
+  globalThis.fetch = async (url) => jsonResponse([], 206, {
+    "content-range": String(url).includes("article_id=eq.article-0") ? "*/0" : "0-0/2544",
+  });
+  const result = await get(`/api/analytics?articleIds=${Array.from({ length: 100 }, (_, i) => `article-${i}`).join(",")}`);
+  assert.equal(result.statusCode, 200);
+  assert.equal(JSON.parse(result.body).viewCounts["article-1"], 2544);
+  assert.equal(JSON.parse(result.body).viewCounts["article-0"], undefined);
+});
+
+test("article counts expire after 30 seconds and failures are retried instead of cached", async () => {
+  let now = 100_000;
+  Date.now = () => now;
+  let calls = 0;
+  globalThis.fetch = async () => jsonResponse([], 206, { "content-range": `0-0/${++calls}` });
+  const first = await get("/api/analytics?articleIds=ttl-article");
+  now += 29_999;
+  assert.equal((await get("/api/analytics?articleIds=ttl-article")).body, first.body);
+  now += 1;
+  assert.equal(JSON.parse((await get("/api/analytics?articleIds=ttl-article")).body).viewCounts["ttl-article"], 2);
+  let failed = true;
+  globalThis.fetch = async () => failed
+    ? jsonResponse({ message: "Database temporarily unavailable" }, 503)
+    : jsonResponse([], 206, { "content-range": "0-0/7" });
+  assert.equal((await get("/api/analytics?articleIds=failure-article")).statusCode, 500);
+  failed = false;
+  assert.equal(JSON.parse((await get("/api/analytics?articleIds=failure-article")).body).viewCounts["failure-article"], 7);
+});
+
+test("Most Read scans share a cached result without changing historical rankings", async () => {
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    return jsonResponse([
+      { article_id: "popular" }, { article_id: "popular" },
+      { article_id: "other" },
+    ]);
+  };
+  const results = await Promise.all(Array.from({ length: 4 }, () => get("/api/analytics?scope=articleCounts")));
+  results.forEach((result) => assert.deepEqual(JSON.parse(result.body).viewCounts, { popular: 2, other: 1 }));
+  assert.equal(calls, 1);
+});
+
+test("a tracked view invalidates article counts and Most Read snapshots", async () => {
+  let count = 1;
+  let readCalls = 0;
+  globalThis.fetch = async (url, options = {}) => {
+    const path = String(url);
+    if (path.includes("/articles?")) return jsonResponse([{ id: "mutation-article" }]);
+    if (path.includes("select=id&author=")) return jsonResponse([]);
+    if (options.method === "POST") { count++; return jsonResponse([{ id: "new-view" }]); }
+    readCalls++;
+    if (path.includes("article_id=eq.")) return jsonResponse([], 206, { "content-range": `0-0/${count}` });
+    return jsonResponse(Array.from({ length: count }, () => ({ article_id: "mutation-article" })));
+  };
+  await get("/api/analytics?articleIds=mutation-article");
+  await get("/api/analytics?scope=articleCounts");
+  const response = createResponse();
+  await handler(request("mutation-article", { "x-forwarded-for": "198.51.100.6" }), response);
+  assert.equal(response.statusCode, 200);
+  assert.equal(JSON.parse(response.body).viewCount, 2);
+  assert.equal(JSON.parse((await get("/api/analytics?articleIds=mutation-article")).body).viewCounts["mutation-article"], 2);
+  assert.equal(JSON.parse((await get("/api/analytics?scope=articleCounts")).body).viewCounts["mutation-article"], 2);
+  assert.equal(readCalls, 5);
 });

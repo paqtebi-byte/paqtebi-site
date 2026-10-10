@@ -20,6 +20,7 @@ class ApiService {
 
   /** Clear article data cached by this browser tab. */
   invalidateArticleCache() {
+    RemoteApiService.invalidateAnalyticsCache();
     this.articleCacheGeneration += 1;
     this.articleCache.clear();
     this.articleRequests.clear();

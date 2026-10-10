@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { fetchWithTimeout } from "./_fetchWithTimeout.js";
+import { createAnalyticsCache, MAX_ANALYTICS_ARTICLE_IDS } from "../utils/analyticsCache.js";
 
 function json(response, status, body) {
   response.statusCode = status;
@@ -31,6 +32,7 @@ const VIEW_DEDUPE_WINDOW_MS = 6 * 60 * 60 * 1000;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 60;
 const rateLimits = new Map();
+const viewCountsCache = createAnalyticsCache();
 
 function encodeViewText(articleId, visitorKey = "") {
   const encodedArticleId = Buffer.from(String(articleId), "utf8").toString("base64url");
@@ -208,35 +210,16 @@ async function getExactCount(path) {
 async function getArticleViewCounts(articleIds = []) {
   const requestedIds = articleIds.filter(Boolean);
 
-  // If specific article IDs are requested, use SQL COUNT per article via RPC-style
-  // grouped query. This avoids downloading every view row — just the counts.
+  // Fetch exact counts without downloading the underlying view events.
   if (requestedIds.length > 0) {
-    const counts = {};
-    // Fetch counts for each article individually using count=exact header.
-    // Two queries per article:
-    //   1. Rows where article_id column is set (primary path — all rows after backfill migration).
-    //   2. Rows where article_id is NULL but the ID is encoded in text (legacy fallback rows).
-    // After the one-time backfill migration the second count is always 0 and adds no real
-    // overhead. Before the migration it ensures old view rows are not silently ignored.
+    const counts = Object.create(null);
+    // Production backfill verified: all historical view rows have article_id.
     await Promise.all(
       requestedIds.map(async (articleId) => {
-        try {
-          const countByColumn = await getExactCount(
-            `comments?author=eq.${encodeURIComponent("__paqtebi_view__")}&article_id=eq.${encodeURIComponent(articleId)}`
-          );
-
-          // Compute the base64url token the way encodeViewText() does, so we can match
-          // legacy rows that store the article ID only inside the text field.
-          const b64ArticleId = Buffer.from(String(articleId), "utf8").toString("base64url");
-          const countByText = await getExactCount(
-            `comments?author=eq.${encodeURIComponent("__paqtebi_view__")}&article_id=is.null&text=like.${encodeURIComponent(`%[[paqtebi-view:${b64ArticleId}%`)}`
-          );
-
-          const total = countByColumn + countByText;
-          if (total > 0) counts[articleId] = total;
-        } catch {
-          // best-effort: skip this article's count on error
-        }
+        const total = await viewCountsCache.read(`article:${articleId}`, () => getExactCount(
+          `comments?author=eq.${encodeURIComponent(VIEW_EVENT_AUTHOR)}&article_id=eq.${encodeURIComponent(articleId)}`
+        ));
+        if (total > 0) counts[articleId] = total;
       })
     );
     return counts;
@@ -285,13 +268,32 @@ export default async function handler(request, response) {
   try {
     if (request.method === "GET") {
       const url = new URL(request.url, "http://localhost");
-      const articleIds = String(url.searchParams.get("articleIds") || "")
+      response.setHeader("cache-control", "no-store");
+      const rawIds = url.searchParams.get("articleIds");
+      if (url.searchParams.getAll("articleIds").length > 1 || (rawIds?.length || 0) > 12_899) {
+        json(response, 400, { error: "Invalid article ID batch" });
+        return;
+      }
+      const articleIds = [...new Set(String(rawIds || "")
         .split(",")
         .map((id) => id.trim())
-        .filter(Boolean);
+        .filter(Boolean))];
+      if ((rawIds !== null && articleIds.length === 0)
+        || articleIds.length > MAX_ANALYTICS_ARTICLE_IDS
+        || articleIds.some((id) => !isValidArticleId(id))) {
+        json(response, 400, { error: "Expected 1 to 100 valid, unique article IDs" });
+        return;
+      }
+      const scope = url.searchParams.get("scope");
+      if (scope !== null && scope !== "articleCounts") {
+        json(response, 400, { error: "Invalid analytics scope" });
+        return;
+      }
 
       if (articleIds.length > 0 || url.searchParams.get("scope") === "articleCounts") {
-        const viewCounts = await getArticleViewCounts(articleIds);
+        const viewCounts = articleIds.length > 0
+          ? await getArticleViewCounts(articleIds)
+          : await viewCountsCache.read("rankings", () => getArticleViewCounts());
         json(response, 200, { viewCounts });
         return;
       }
@@ -362,6 +364,7 @@ export default async function handler(request, response) {
           text: viewText,
         }),
       }));
+      viewCountsCache.clear();
 
       // Use cheap SQL COUNT for the updated view count — no row scan needed
       const viewCount = await getExactCount(
